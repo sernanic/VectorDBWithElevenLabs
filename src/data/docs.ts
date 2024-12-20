@@ -1,13 +1,20 @@
-export type DocSection = {
+export type DocSubsubsection = {
   id: string;
   title: string;
-  subsections: DocSubsection[];
+  content: string;
 };
 
 export type DocSubsection = {
   id: string;
   title: string;
   content: string;
+  subsubsections?: DocSubsubsection[];
+};
+
+export type DocSection = {
+  id: string;
+  title: string;
+  subsections: DocSubsection[];
 };
 
 export const documentationSections: DocSection[] = [
@@ -19,13 +26,37 @@ export const documentationSections: DocSection[] = [
         id: "invoices-overview",
         title: "Overview",
         content: "Learn about Mobiwork's invoicing system",
+        subsubsections: [
+          {
+            id: "what-are-invoices",
+            title: "What are Invoices?",
+            content: "Detailed explanation of invoices in Mobiwork"
+          },
+          {
+            id: "invoice-lifecycle",
+            title: "Invoice Lifecycle",
+            content: "Understanding the lifecycle of an invoice"
+          }
+        ]
       },
       {
         id: "creating-invoices",
         title: "Creating Invoices",
         content: "Step by step guide to create invoices",
-      },
-    ],
+        subsubsections: [
+          {
+            id: "invoice-creation-process",
+            title: "Creation Process",
+            content: "Detailed steps to create an invoice"
+          },
+          {
+            id: "invoice-templates",
+            title: "Invoice Templates",
+            content: "Using and managing invoice templates"
+          }
+        ]
+      }
+    ]
   },
   {
     id: "work-orders",

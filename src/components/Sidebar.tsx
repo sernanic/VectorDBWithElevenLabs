@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { documentationSections } from "@/data/docs";
 import { ChevronDown, ChevronRight, Menu } from "lucide-react";
 
@@ -52,13 +53,13 @@ const Sidebar = () => {
                 {expandedSections.includes(section.id) && (
                   <div className="ml-4 mt-1 space-y-1">
                     {section.subsections.map((subsection) => (
-                      <a
+                      <Link
                         key={subsection.id}
-                        href={`#${subsection.id}`}
+                        to={`/${section.id}/${subsection.id}`}
                         className="block px-2 py-1.5 text-sm text-gray-600 hover:text-primary transition-colors"
                       >
                         {subsection.title}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}
