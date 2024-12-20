@@ -8,6 +8,8 @@ type SearchResult = {
     id: string;
     title: string;
     parentTitle?: string;
+    sectionId?: string;
+    subsectionId?: string;
   };
 };
 
@@ -17,14 +19,24 @@ const SearchBar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Prepare search data
+  // Prepare search data including subsubsections
   const searchData = documentationSections.flatMap((section) => [
     { id: section.id, title: section.title },
-    ...section.subsections.map((subsection) => ({
-      id: subsection.id,
-      title: subsection.title,
-      parentTitle: section.title,
-    })),
+    ...section.subsections.flatMap((subsection) => [
+      {
+        id: subsection.id,
+        title: subsection.title,
+        parentTitle: section.title,
+        sectionId: section.id,
+      },
+      ...(subsection.subsubsections?.map((subsubsection) => ({
+        id: subsubsection.id,
+        title: subsubsection.title,
+        parentTitle: subsection.title,
+        sectionId: section.id,
+        subsectionId: subsection.id,
+      })) || []),
+    ]),
   ]);
 
   // Initialize Fuse instance
@@ -35,10 +47,7 @@ const SearchBar = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -87,7 +96,7 @@ const SearchBar = () => {
           {results.map(({ item }) => (
             <a
               key={item.id}
-              href={`#${item.id}`}
+              href={item.subsectionId ? `/${item.sectionId}/${item.subsectionId}#${item.id}` : `#${item.id}`}
               className="block px-4 py-2 hover:bg-gray-50"
               onClick={() => setIsOpen(false)}
             >
