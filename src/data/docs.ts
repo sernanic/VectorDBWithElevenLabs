@@ -70,7 +70,34 @@ export const documentationSections: DocSection[] = [
       {
         id: "managing-work-orders",
         title: "Managing Work Orders",
-        content: "Learn how to manage work orders effectively",
+        content: "Learn how to effectively manage and organize work orders in Mobiwork to streamline your field service operations.",
+        subsubsections: [
+          {
+            id: "creating-work-orders",
+            title: "Creating Work Orders",
+            content: "Step-by-step guide on how to create new work orders. Learn about required fields, optional information, and best practices for creating detailed work orders that provide clear instructions for your field technicians."
+          },
+          {
+            id: "assigning-technicians",
+            title: "Assigning Technicians",
+            content: "Discover how to assign the right technicians to work orders based on skills, availability, and location. Learn about the automatic assignment features and how to manually override assignments when needed."
+          },
+          {
+            id: "tracking-progress",
+            title: "Tracking Progress",
+            content: "Monitor work order progress in real-time. Learn about status updates, completion tracking, and how to use the dashboard to get a bird's eye view of all active work orders."
+          },
+          {
+            id: "managing-priorities",
+            title: "Managing Priorities",
+            content: "Understand how to set and adjust work order priorities to ensure critical tasks are handled first. Learn about the priority levels and how they affect scheduling and resource allocation."
+          },
+          {
+            id: "generating-reports",
+            title: "Generating Reports",
+            content: "Learn how to generate comprehensive reports about work order performance, completion rates, and technician productivity. Understand how to use these insights to improve your service operations."
+          }
+        ]
       },
     ],
   },
