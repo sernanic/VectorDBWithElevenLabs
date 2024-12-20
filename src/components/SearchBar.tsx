@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import Fuse from "fuse.js";
-import { documentationSections } from "@/data/docs";
+import { getDocumentationSections } from "@/data/docs";
 import { Search, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 type SearchResult = {
   item: {
@@ -10,6 +12,7 @@ type SearchResult = {
     parentTitle?: string;
     sectionId?: string;
     subsectionId?: string;
+    isSubsubsection?: boolean;
   };
 };
 
@@ -18,32 +21,47 @@ const SearchBar = () => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { i18n } = useTranslation();
+  const [fuse, setFuse] = useState<Fuse<any>>();
 
-  // Prepare search data including subsubsections
-  const searchData = documentationSections.flatMap((section) => [
-    { id: section.id, title: section.title },
-    ...section.subsections.flatMap((subsection) => [
-      {
-        id: subsection.id,
-        title: subsection.title,
-        parentTitle: section.title,
-        sectionId: section.id,
+  // Update search data when language changes
+  useEffect(() => {
+    // Get translated documentation
+    const sections = getDocumentationSections();
+    
+    // Prepare search data including subsubsections
+    const searchData = sections.flatMap((section) => [
+      { 
+        id: section.id, 
+        title: section.title,
+        sectionId: section.id 
       },
-      ...(subsection.subsubsections?.map((subsubsection) => ({
-        id: subsubsection.id,
-        title: subsubsection.title,
-        parentTitle: subsection.title,
-        sectionId: section.id,
-        subsectionId: subsection.id,
-      })) || []),
-    ]),
-  ]);
+      ...section.subsections.flatMap((subsection) => [
+        {
+          id: subsection.id,
+          title: subsection.title,
+          parentTitle: section.title,
+          sectionId: section.id,
+          subsectionId: subsection.id,
+        },
+        ...(subsection.subsubsections?.map((subsubsection) => ({
+          id: subsubsection.id,
+          title: subsubsection.title,
+          parentTitle: subsection.title,
+          sectionId: section.id,
+          subsectionId: subsection.id,
+          isSubsubsection: true
+        })) || []),
+      ]),
+    ]);
 
-  // Initialize Fuse instance
-  const fuse = new Fuse(searchData, {
-    keys: ["title"],
-    threshold: 0.3,
-  });
+    // Initialize Fuse instance with current language data
+    setFuse(new Fuse(searchData, {
+      keys: ["title"],
+      threshold: 0.3,
+    }));
+  }, [i18n.language]); // Re-run when language changes
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,7 +76,7 @@ const SearchBar = () => {
 
   const handleSearch = (value: string) => {
     setQuery(value);
-    if (value.trim()) {
+    if (value.trim() && fuse) {
       const searchResults = fuse.search(value);
       setResults(searchResults);
       setIsOpen(true);
@@ -68,8 +86,24 @@ const SearchBar = () => {
     }
   };
 
+  const handleResultClick = (item: SearchResult['item']) => {
+    setIsOpen(false);
+    let path;
+    if (item.subsectionId) {
+      // If it's a subsection or subsubsection
+      path = `/${item.sectionId}/${item.subsectionId}`;
+      if (item.isSubsubsection) {
+        path += `#${item.id}`;
+      }
+    } else {
+      // If it's a main section
+      path = `/${item.sectionId}`;
+    }
+    navigate(path);
+  };
+
   return (
-    <div ref={searchRef} className="relative mb-8">
+    <div ref={searchRef} className="relative">
       <div className="relative">
         <Search
           className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -80,33 +114,31 @@ const SearchBar = () => {
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search documentation..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {query && (
           <button
             onClick={() => handleSearch("")}
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         )}
       </div>
+
       {isOpen && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto">
+        <div className="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto">
           {results.map(({ item }) => (
-            <a
-              key={item.id}
-              href={item.subsectionId ? `/${item.sectionId}/${item.subsectionId}#${item.id}` : `#${item.id}`}
-              className="block px-4 py-2 hover:bg-gray-50"
-              onClick={() => setIsOpen(false)}
+            <button
+              key={`${item.sectionId}-${item.id}`}
+              onClick={() => handleResultClick(item)}
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 flex flex-col"
             >
-              <div className="text-sm font-medium text-gray-900">
-                {item.title}
-              </div>
+              <span className="font-medium">{item.title}</span>
               {item.parentTitle && (
-                <div className="text-xs text-gray-500">{item.parentTitle}</div>
+                <span className="text-sm text-gray-500">{item.parentTitle}</span>
               )}
-            </a>
+            </button>
           ))}
         </div>
       )}

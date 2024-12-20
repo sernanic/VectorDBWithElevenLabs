@@ -1,0 +1,98 @@
+{
+  "sections": {
+    "invoices": {
+      "title": "Facturas",
+      "subsections": {
+        "invoices-overview": {
+          "title": "Descripción General",
+          "content": "Aprenda sobre el sistema de facturación de Mobiwork",
+          "subsubsections": {
+            "what-are-invoices": {
+              "title": "¿Qué son las Facturas?",
+              "content": "Explicación detallada de las facturas en Mobiwork"
+            },
+            "invoice-lifecycle": {
+              "title": "Ciclo de Vida de la Factura",
+              "content": "Comprensión del ciclo de vida de una factura"
+            }
+          }
+        },
+        "creating-invoices": {
+          "title": "Crear Facturas",
+          "content": "Guía paso a paso para crear facturas",
+          "subsubsections": {
+            "invoice-creation-process": {
+              "title": "Proceso de Creación",
+              "content": "Pasos detallados para crear una factura"
+            },
+            "invoice-templates": {
+              "title": "Plantillas de Facturas",
+              "content": "Uso y gestión de plantillas de facturas"
+            }
+          }
+        }
+      }
+    },
+    "work-orders": {
+      "title": "Órdenes de Trabajo",
+      "subsections": {
+        "work-orders-overview": {
+          "title": "Descripción General",
+          "content": "Comprensión de las órdenes de trabajo en Mobiwork"
+        },
+        "managing-work-orders": {
+          "title": "Gestión de Órdenes de Trabajo",
+          "content": "Aprenda a gestionar y organizar eficazmente las órdenes de trabajo en Mobiwork para optimizar sus operaciones de servicio de campo.",
+          "subsubsections": {
+            "creating-work-orders": {
+              "title": "Crear Órdenes de Trabajo",
+              "content": "Guía paso a paso sobre cómo crear nuevas órdenes de trabajo. Conozca los campos requeridos, la información opcional y las mejores prácticas para crear órdenes de trabajo detalladas que proporcionen instrucciones claras para sus técnicos de campo."
+            },
+            "assigning-technicians": {
+              "title": "Asignar Técnicos",
+              "content": "Descubra cómo asignar los técnicos adecuados a las órdenes de trabajo según sus habilidades, disponibilidad y ubicación. Aprenda sobre las funciones de asignación automática y cómo anular manualmente las asignaciones cuando sea necesario."
+            },
+            "tracking-progress": {
+              "title": "Seguimiento del Progreso",
+              "content": "Monitoree el progreso de las órdenes de trabajo en tiempo real. Aprenda sobre las actualizaciones de estado, el seguimiento de la finalización y cómo usar el panel para obtener una vista general de todas las órdenes de trabajo activas."
+            },
+            "managing-priorities": {
+              "title": "Gestión de Prioridades",
+              "content": "Comprenda cómo establecer y ajustar las prioridades de las órdenes de trabajo para garantizar que las tareas críticas se manejen primero. Aprenda sobre los niveles de prioridad y cómo afectan la programación y la asignación de recursos."
+            },
+            "generating-reports": {
+              "title": "Generar Informes",
+              "content": "Aprenda a generar informes completos sobre el rendimiento de las órdenes de trabajo, las tasas de finalización y la productividad de los técnicos. Comprenda cómo utilizar estos conocimientos para mejorar sus operaciones de servicio."
+            }
+          }
+        }
+      }
+    },
+    "quotes": {
+      "title": "Cotizaciones",
+      "subsections": {
+        "quotes-overview": {
+          "title": "Descripción General",
+          "content": "Introducción a las cotizaciones en Mobiwork"
+        },
+        "creating-quotes": {
+          "title": "Crear Cotizaciones",
+          "content": "Aprenda a crear y gestionar cotizaciones"
+        }
+      }
+    },
+    "scheduling": {
+      "title": "Programación",
+      "subsections": {
+        "scheduling-overview": {
+          "title": "Descripción General",
+          "content": "Comprensión del sistema de programación"
+        },
+        "recurring-services": {
+          "title": "Servicios Recurrentes",
+          "content": "Configuración y gestión de servicios recurrentes"
+        }
+      }
+    }
+  }
+}

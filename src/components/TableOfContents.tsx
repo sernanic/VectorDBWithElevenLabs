@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { DocSubsubsection } from "@/data/docs";
+import { DocSubsection } from "@/data/docs";
+import { useTranslation } from "react-i18next";
 
 interface TableOfContentsProps {
-  subsubsections: DocSubsubsection[];
+  subsection: DocSubsection;
 }
 
-const TableOfContents = ({ subsubsections }: TableOfContentsProps) => {
+const TableOfContents = ({ subsection }: TableOfContentsProps) => {
   const [activeSection, setActiveSection] = useState<string>("");
+  const { t } = useTranslation();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -21,20 +23,26 @@ const TableOfContents = ({ subsubsections }: TableOfContentsProps) => {
       { threshold: 0.5 }
     );
 
-    subsubsections.forEach((section) => {
-      const element = document.getElementById(section.id);
-      if (element) observer.observe(element);
-    });
+    if (subsection.subsubsections) {
+      subsection.subsubsections.forEach((section) => {
+        const element = document.getElementById(section.id);
+        if (element) observer.observe(element);
+      });
+    }
 
     return () => observer.disconnect();
-  }, [subsubsections]);
+  }, [subsection]);
+
+  if (!subsection.subsubsections) {
+    return null;
+  }
 
   return (
     <nav className="hidden lg:block sticky top-6 self-start ml-auto w-64 pl-8">
       <div className="relative">
-        <h4 className="text-sm font-semibold mb-4 text-gray-900">On this page</h4>
+        <h4 className="text-sm font-semibold mb-4 text-gray-900">{t("on_this_page")}</h4>
         <ul className="space-y-3 text-sm">
-          {subsubsections.map((section) => {
+          {subsection.subsubsections.map((section) => {
             const isActive = activeSection === section.id;
             return (
               <li key={section.id} className="relative pl-4">
