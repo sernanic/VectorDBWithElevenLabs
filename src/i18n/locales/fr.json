@@ -1,0 +1,98 @@
+{
+  "sections": {
+    "invoices": {
+      "title": "# Factures",
+      "subsections": {
+        "invoices-overview": {
+          "title": "## Aperçu",
+          "content": "Découvrez le système de facturation de Mobiwork",
+          "subsubsections": {
+            "what-are-invoices": {
+              "title": "### Qu'est-ce que les Factures?",
+              "content": "Explication détaillée des factures dans Mobiwork"
+            },
+            "invoice-lifecycle": {
+              "title": "### Cycle de Vie d'une Facture",
+              "content": "Comprendre le cycle de vie d'une facture"
+            }
+          }
+        },
+        "creating-invoices": {
+          "title": "## Création de Factures",
+          "content": "Guide étape par étape pour créer des factures",
+          "subsubsections": {
+            "invoice-creation-process": {
+              "title": "### Processus de Création",
+              "content": "Étapes détaillées pour créer une facture"
+            },
+            "invoice-templates": {
+              "title": "### Modèles de Factures",
+              "content": "Utilisation et gestion des modèles de factures"
+            }
+          }
+        }
+      }
+    },
+    "work-orders": {
+      "title": "# Ordres de Travail",
+      "subsections": {
+        "work-orders-overview": {
+          "title": "## Aperçu",
+          "content": "Comprendre les ordres de travail dans Mobiwork"
+        },
+        "managing-work-orders": {
+          "title": "# Gestion des Ordres de Travail",
+          "content": "Créer des Ordres de Travail\nGuide étape par étape sur la création de nouveaux ordres de travail. Découvrez les champs requis, les informations facultatives et les meilleures pratiques pour créer des ordres de travail détaillés qui fournissent des instructions claires à vos techniciens.\n\n## Attribution des Techniciens\nDécouvrez comment attribuer les bons techniciens aux ordres de travail en fonction des compétences, de la disponibilité et de l'emplacement. Apprenez les fonctionnalités d'attribution automatique et comment modifier manuellement les attributions si nécessaire.\n\n## Suivi des Progrès\nSuivez l'avancement des ordres de travail en temps réel. Découvrez les mises à jour de statut, le suivi de l'achèvement et comment utiliser le tableau de bord pour avoir une vue d'ensemble de tous les ordres de travail actifs.\n\n## Définition des Priorités\nComprenez comment définir et ajuster les priorités des ordres de travail pour garantir que les tâches critiques sont traitées en premier. Découvrez les niveaux de priorité et leur impact sur la planification et l'allocation des ressources.\n\n## Rapports et Analyses\nApprenez à générer des rapports complets sur la performance des ordres de travail, les taux d'achèvement et la productivité des techniciens. Comprenez comment utiliser ces informations pour améliorer vos opérations de service.",
+          "subsubsections": {
+            "creating-work-orders": {
+              "title": "### Création d'Ordres de Travail",
+              "content": "Guide étape par étape sur la création de nouveaux ordres de travail. Découvrez les champs requis, les informations facultatives et les meilleures pratiques pour créer des ordres de travail détaillés qui fournissent des instructions claires à vos techniciens."
+            },
+            "assigning-technicians": {
+              "title": "### Attribution des Techniciens",
+              "content": "Découvrez comment attribuer les bons techniciens aux ordres de travail en fonction des compétences, de la disponibilité et de l'emplacement. Apprenez les fonctionnalités d'attribution automatique et comment modifier manuellement les attributions si nécessaire."
+            },
+            "tracking-progress": {
+              "title": "### Suivi des Progrès",
+              "content": "Suivez l'avancement des ordres de travail en temps réel. Découvrez les mises à jour de statut, le suivi de l'achèvement et comment utiliser le tableau de bord pour avoir une vue d'ensemble de tous les ordres de travail actifs."
+            },
+            "managing-priorities": {
+              "title": "### Définition des Priorités",
+              "content": "Comprenez comment définir et ajuster les priorités des ordres de travail pour garantir que les tâches critiques sont traitées en premier. Découvrez les niveaux de priorité et leur impact sur la planification et l'allocation des ressources."
+            },
+            "generating-reports": {
+              "title": "### Rapports et Analyses",
+              "content": "Apprenez à générer des rapports complets sur la performance des ordres de travail, les taux d'achèvement et la productivité des techniciens. Comprenez comment utiliser ces informations pour améliorer vos opérations de service."
+            }
+          }
+        }
+      }
+    },
+    "quotes": {
+      "title": "# Devis",
+      "subsections": {
+        "quotes-overview": {
+          "title": "## Aperçu",
+          "content": "Introduction aux devis dans Mobiwork"
+        },
+        "creating-quotes": {
+          "title": "## Création de Devis",
+          "content": "Apprenez à créer et gérer les devis"
+        }
+      }
+    },
+    "scheduling": {
+      "title": "# Planification",
+      "subsections": {
+        "scheduling-overview": {
+          "title": "## Aperçu",
+          "content": "Comprendre le système de planification"
+        },
+        "recurring-services": {
+          "title": "## Services Récurrents",
+          "content": "Configuration et gestion des services récurrents"
+        }
+      }
+    }
+  }
+}

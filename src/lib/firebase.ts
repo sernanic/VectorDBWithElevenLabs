@@ -7,6 +7,7 @@ import {
   indexedDBLocalPersistence,
   browserPopupRedirectResolver
 } from "firebase/auth";
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBeiRVnRW9IiRhYuNSVTO1pP1NwgS7zzuA",
@@ -27,9 +28,12 @@ const auth = initializeAuth(app, {
   popupRedirectResolver: browserPopupRedirectResolver,
 });
 
+// Initialize Firestore
+const db = getFirestore(app);
+
 // Set persistence to local
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Error setting persistence:", error);
 });
 
-export { app, auth };
+export { app, auth, db };

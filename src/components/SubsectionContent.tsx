@@ -6,18 +6,65 @@ import TableOfContents from "./TableOfContents";
 import { EditButton } from "./EditButton";
 import { useToast } from "@/components/ui/use-toast";
 import * as Markdoc from "@markdoc/markdoc";
+import { db } from "@/lib/firebase";
+import { doc, setDoc, collection, getDoc } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 const SubsectionContent = () => {
   const { sectionId, subsectionId } = useParams();
   const { i18n } = useTranslation();
   const [sections, setSections] = useState(getDocumentationSections());
+  const [content, setContent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Force re-render when language changes
+  const fetchContent = async () => {
+    try {
+      setIsLoading(true);
+      const docRef = doc(db, i18n.language, `${sectionId}-${subsectionId}`);
+      
+      // Create a promise that resolves after 3 seconds
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve(null), 3000);
+      });
+
+      // Race between the Firestore fetch and the timeout
+      const result = await Promise.race([
+        getDoc(docRef),
+        timeoutPromise
+      ]);
+
+      if (result && 'exists' in result && result.exists()) {
+        const data = result.data();
+        setContent(data.pageContent);
+      } else {
+        // If timeout won or document doesn't exist, use default content
+        const section = sections.find((s) => s.id === sectionId);
+        const subsection = section?.subsections.find((s) => s.id === subsectionId);
+        setContent(subsection?.content || null);
+      }
+    } catch (error) {
+      console.error("Error fetching content:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch content",
+        variant: "destructive",
+      });
+      // On error, fall back to default content
+      const section = sections.find((s) => s.id === sectionId);
+      const subsection = section?.subsections.find((s) => s.id === subsectionId);
+      setContent(subsection?.content || null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch content when component mounts or language/section/subsection changes
   useEffect(() => {
-    console.log('Language changed in SubsectionContent:', i18n.language);
-    setSections(getDocumentationSections());
-  }, [i18n.language]);
+    if (sectionId && subsectionId) {
+      fetchContent();
+    }
+  }, [i18n.language, sectionId, subsectionId]);
 
   const section = sections.find((s) => s.id === sectionId);
   const subsection = section?.subsections.find((s) => s.id === subsectionId);
@@ -28,34 +75,62 @@ const SubsectionContent = () => {
 
   const renderMarkdown = (content: string) => {
     const ast = Markdoc.parse(content);
-    const transformed = Markdoc.transform(ast);
+    const transformed = Markdoc.transform(ast, {
+      nodes: {
+        heading: {
+          transform(node, config) {
+            const attributes = node.transformAttributes(config);
+            const children = node.transformChildren(config);
+            const title = children[0]?.content || '';
+            const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            
+            return new Markdoc.Tag(
+              'h' + (node.attributes['level'] || 1),
+              { ...attributes, id },
+              children
+            );
+          },
+        },
+      },
+    });
     return Markdoc.renderers.react(transformed, React);
   };
 
   const handleSaveContent = async (newContent: string) => {
     try {
-      // Parse the new content to separate main content and subsubsections
-      const contentLines = newContent.split('\n');
-      const mainContent = contentLines[0]; // First line is the main content
+      // Get the current language
+      const currentLanguage = i18n.language;
+
+      // Create the document data
+      const docData = {
+        pageContent: newContent,
+        pageURL: `/${sectionId}/${subsectionId}`,
+      };
+
+      // Reference to the language collection and document
+      const languageCollectionRef = collection(db, currentLanguage);
+      const docRef = doc(languageCollectionRef, `${sectionId}-${subsectionId}`);
+
+      // Save to Firestore
+      await setDoc(docRef, docData);
       
-      // The rest of the content belongs to subsubsections
-      const subsubsectionContent = contentLines.slice(1).join('\n');
-      
-      // For development, we'll update the content in memory
+      // Update local state
+      setContent(newContent);
+
+      // Show success toast
+      toast({
+        title: "Content saved",
+        description: "The content has been saved to the database",
+      });
+
+      // Update sections state
       const updatedSections = sections.map(s => {
         if (s.id === sectionId) {
           return {
             ...s,
             subsections: s.subsections.map(sub => {
               if (sub.id === subsectionId) {
-                return { 
-                  ...sub, 
-                  content: mainContent,
-                  subsubsections: sub.subsubsections?.map((subsub, index) => ({
-                    ...subsub,
-                    content: contentLines[index + 1] || subsub.content
-                  }))
-                };
+                return { ...sub, content: newContent };
               }
               return sub;
             }),
@@ -63,71 +138,37 @@ const SubsectionContent = () => {
         }
         return s;
       });
-      
       setSections(updatedSections);
-
-      toast({
-        title: "Content updated",
-        description: "Changes saved successfully. Note: In development mode, changes are temporary.",
-      });
-
-      console.log('Would update locale file:', {
-        language: i18n.language,
-        sectionId,
-        subsectionId,
-        mainContent,
-        subsubsectionContent
-      });
     } catch (error) {
-      console.error('Error saving content:', error);
+      console.error("Error saving content:", error);
       toast({
         title: "Error",
-        description: "Failed to update the content. Please try again.",
+        description: "Failed to save content. Please try again.",
         variant: "destructive",
       });
     }
   };
 
   return (
-    <div className="relative min-h-screen">
-      <div className="flex justify-between gap-8">
-        <div className="flex-1 max-w-3xl">
-          <div className="prose prose-slate max-w-none">
-            {renderMarkdown(subsection.title)}
-            <div className="text-lg text-gray-600 mt-4">
-              {renderMarkdown(subsection.content)}
+    <div className="flex flex-col md:flex-row">
+      <div className="w-full md:w-3/4 p-8">
+        <div className="prose prose-slate max-w-none dark:prose-invert">
+          {isLoading ? (
+            <div className="flex items-center justify-center min-h-[200px]">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
             </div>
-            {subsection.subsubsections && subsection.subsubsections.length > 0 && (
-              <div className="mt-8 space-y-8">
-                {subsection.subsubsections.map((subsubsection) => (
-                  <section 
-                    key={subsubsection.id} 
-                    id={subsubsection.id}
-                    className="space-y-4"
-                  >
-                    {renderMarkdown(subsubsection.title)}
-                    <div className="text-gray-600">
-                      {renderMarkdown(subsubsection.content)}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
-          </div>
+          ) : (
+            content !== null ? renderMarkdown(content) : renderMarkdown(subsection.content)
+          )}
         </div>
-        {subsection.subsubsections && (
-          <div className="hidden lg:block w-64">
-            <TableOfContents subsection={subsection} />
-          </div>
-        )}
+        <EditButton 
+          content={content || subsection.content} 
+          onSave={handleSaveContent} 
+        />
       </div>
-      <EditButton 
-        content={[
-          subsection.content,
-          ...(subsection.subsubsections?.map(sub => sub.content) || [])
-        ].join('\n')}
-        onSave={handleSaveContent}
-      />
+      <div className="w-full md:w-1/4 p-4">
+        <TableOfContents content={content || subsection.content} />
+      </div>
     </div>
   );
 };

@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useLocation } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Markdoc from '@markdoc/markdoc';
@@ -96,10 +95,10 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
   const renderPreview = () => {
     try {
       const ast = Markdoc.parse(editableContent);
-      const content = Markdoc.transform(ast);
+      const transformed = Markdoc.transform(ast);
       return (
         <div className="prose dark:prose-invert max-w-none">
-          {Markdoc.renderers.react(content, React)}
+          {Markdoc.renderers.react(transformed, React)}
         </div>
       );
     } catch (error) {
@@ -113,7 +112,10 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
         size="icon"
         variant="secondary"
         className="fixed bottom-20 right-4 h-12 w-12 rounded-full shadow-lg bg-orange-500 hover:bg-orange-600"
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setEditableContent(content);
+          setIsOpen(true);
+        }}
       >
         <Pencil className="h-6 w-6 text-white" />
       </Button>
@@ -154,8 +156,9 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
                 <div className="text-sm text-gray-500">
                   <p>Content Format:</p>
                   <ul className="list-disc pl-4">
-                    <li>First line: Main section content</li>
-                    <li>Following lines: Subsection content (one per line)</li>
+                    <li>First paragraph: Main section content</li>
+                    <li>Following paragraphs: Subsection content (one per paragraph)</li>
+                    <li>Use double line breaks to separate sections</li>
                   </ul>
                 </div>
               </div>
