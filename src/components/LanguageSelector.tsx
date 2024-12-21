@@ -9,7 +9,11 @@ import {
 import { useLanguageStore, languages } from '@/store/useLanguageStore';
 import { useTranslation } from 'react-i18next';
 
-const LanguageSelector = () => {
+interface LanguageSelectorProps {
+  collapsed?: boolean;
+}
+
+const LanguageSelector = ({ collapsed = false }: LanguageSelectorProps) => {
   const { currentLanguage, setLanguage } = useLanguageStore();
   const { i18n } = useTranslation();
 
@@ -20,15 +24,15 @@ const LanguageSelector = () => {
   };
 
   return (
-    <div className="px-6 py-4 border-t border-border">
+    <div className={`${collapsed ? 'px-2 py-2' : 'px-6 py-4 border-t border-border'}`}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+          <button className={`flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 ${collapsed ? 'p-2' : ''}`}>
             <Globe size={16} />
-            <span>{currentLanguage.name}</span>
+            {!collapsed && <span>{currentLanguage.name}</span>}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[140px]">
+        <DropdownMenuContent align={collapsed ? "end" : "start"} className="w-[140px]">
           {languages.map((language) => (
             <DropdownMenuItem
               key={language.code}
