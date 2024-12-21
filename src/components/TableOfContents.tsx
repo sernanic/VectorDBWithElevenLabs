@@ -1,10 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import * as Markdoc from "@markdoc/markdoc";
+
+interface TableOfContentHeader {
+  id: string;
+  title: string;
+  level: number;
+  children: string[]; // Array of child header IDs
+}
+
+interface TableOfContentData {
+  headers: TableOfContentHeader[];
+  structure: { [key: string]: TableOfContentHeader };
+}
 
 interface TableOfContentsProps {
   content: string;
+  tableOfContent?: TableOfContentData;
 }
 
 interface Section {
@@ -13,30 +25,21 @@ interface Section {
   level: number;
 }
 
-const TableOfContents = ({ content }: TableOfContentsProps) => {
+const TableOfContents = ({ content, tableOfContent }: TableOfContentsProps) => {
   const [activeSection, setActiveSection] = useState<string>("");
   const [sections, setSections] = useState<Section[]>([]);
   const { t } = useTranslation();
 
   useEffect(() => {
-    // Parse the markdown content to find headers
-    const ast = Markdoc.parse(content);
-    const headers: Section[] = [];
-    
-    // Walk through the AST to find all headers
-    const walk = (node: any) => {
-      if (node.type === 'heading') {
-        const title = node.children?.[0]?.content || '';
-        const level = node.attributes?.level || 1;
-        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        headers.push({ id, title, level });
-      }
-      node.children?.forEach(walk);
-    };
-    
-    walk(ast);
-    setSections(headers);
-  }, [content]);
+    if (tableOfContent?.headers) {
+      // Use the ordered headers array directly
+      setSections(tableOfContent.headers.map(header => ({
+        id: header.id,
+        title: header.title,
+        level: header.level
+      })));
+    }
+  }, [tableOfContent]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -47,7 +50,9 @@ const TableOfContents = ({ content }: TableOfContentsProps) => {
           }
         });
       },
-      { threshold: 0.5 }
+      { 
+        rootMargin: '-20% 0px -35% 0px'
+      }
     );
 
     sections.forEach((section) => {
@@ -58,6 +63,25 @@ const TableOfContents = ({ content }: TableOfContentsProps) => {
     return () => observer.disconnect();
   }, [sections]);
 
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+    e.preventDefault();
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offset = 100; // Adjust this value based on your header height
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+
+      // Update the URL hash without scrolling (scrolling is handled above)
+      window.history.pushState(null, '', `#${sectionId}`);
+      setActiveSection(sectionId);
+    }
+  };
+
   if (sections.length === 0) {
     return null;
   }
@@ -65,7 +89,6 @@ const TableOfContents = ({ content }: TableOfContentsProps) => {
   return (
     <nav className="hidden lg:block sticky top-6 self-start ml-auto w-64 pl-8">
       <div className="relative">
-        <h4 className="text-sm font-semibold mb-4 text-gray-900">{t("on_this_page")}</h4>
         <ul className="space-y-3 text-sm">
           {sections.map((section) => {
             const isActive = activeSection === section.id;
@@ -73,7 +96,7 @@ const TableOfContents = ({ content }: TableOfContentsProps) => {
               <li 
                 key={section.id} 
                 className="relative pl-4"
-                style={{ marginLeft: `${(section.level - 2) * 12}px` }}
+                style={{ marginLeft: `${(section.level - 1) * 12}px` }}
               >
                 {isActive && (
                   <motion.div
@@ -86,6 +109,7 @@ const TableOfContents = ({ content }: TableOfContentsProps) => {
                 )}
                 <a
                   href={`#${section.id}`}
+                  onClick={(e) => handleClick(e, section.id)}
                   className={`hover:text-blue-500 ${
                     isActive ? "text-blue-500 font-medium" : "text-gray-500"
                   }`}

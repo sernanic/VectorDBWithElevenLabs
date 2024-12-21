@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Pencil } from 'lucide-react';
@@ -9,16 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Markdoc from '@markdoc/markdoc';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import React from 'react';
+import { ADMIN_EMAILS, isAdminEmail } from '@/config/constants';
 
 interface EditButtonProps {
   content: string;
   onSave: (newContent: string) => Promise<void>;
 }
-
-const ADMIN_EMAILS = [
-  'sernanic100@gmail.com',
-  // Add other admin emails here
-];
 
 export const EditButton = ({ content, onSave }: EditButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,9 +26,26 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
   const { toast } = useToast();
 
   // Check if user has edit permissions
-  const hasEditPermission = user && ADMIN_EMAILS.includes(user.email || '');
+  const hasEditPermission = isAdminEmail(user?.email);
 
-  if (!user || !hasEditPermission) return null;
+  // Debug log
+  useEffect(() => {
+    console.log('Auth Debug:', {
+      user: user?.email,
+      hasEditPermission,
+      isEmailInList: user?.email ? isAdminEmail(user.email) : false,
+      adminEmails: ADMIN_EMAILS
+    });
+  }, [user]);
+
+  if (!user || !hasEditPermission) {
+    console.log('Edit button not shown:', { 
+      userExists: !!user, 
+      userEmail: user?.email,
+      hasEditPermission 
+    });
+    return null;
+  }
 
   const validateMarkdown = (content: string): string[] => {
     const errors: string[] = [];
@@ -111,7 +124,7 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
       <Button
         size="icon"
         variant="secondary"
-        className="fixed bottom-20 right-4 h-12 w-12 rounded-full shadow-lg bg-orange-500 hover:bg-orange-600"
+        className="fixed bottom-20 right-4 h-12 w-12 rounded-full shadow-lg bg-orange-500 hover:bg-orange-600 z-50"
         onClick={() => {
           setEditableContent(content);
           setIsOpen(true);
