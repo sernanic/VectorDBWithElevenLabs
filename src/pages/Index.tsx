@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from "@/components/Layout";
 import { documentationSections } from "@/data/docs";
+import { renderMarkdown } from '@/utils/markdown';
 
 const Index = () => {
   return (
@@ -15,13 +16,13 @@ const Index = () => {
           {documentationSections.map((section) => (
             <div key={section.id} id={section.id}>
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                {section.title}
+                {renderMarkdown(section.title)}
               </h2>
               <div className="space-y-8">
                 {section.subsections.map((subsection) => (
                   <div key={subsection.id} id={subsection.id}>
                     <h3 className="text-xl font-medium text-gray-900 mb-2">
-                      {subsection.title}
+                      {renderMarkdown(subsection.title)}
                     </h3>
                     <p className="text-gray-600">{subsection.content}</p>
                   </div>

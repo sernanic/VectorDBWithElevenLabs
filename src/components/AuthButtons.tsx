@@ -1,22 +1,73 @@
-import React from 'react';
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/useAuthStore";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const AuthButtons = () => {
+export const AuthButtons = () => {
+  const navigate = useNavigate();
+  const { user, setUser } = useAuthStore();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  if (user) {
+    const initials = user.displayName
+      ? user.displayName
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+      : user.email?.[0].toUpperCase() || "U";
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+            <Avatar>
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem className="font-medium">
+            {user.email}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-3">
-      <a
-        href="https://app.mobiwork.com/login"
-        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        onClick={() => navigate("/login")}
+        className="text-sm font-medium"
       >
-        Log in
-      </a>
-      <a
-        href="https://app.mobiwork.com/signup"
-        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+        Sign in
+      </Button>
+      <Button
+        variant="default"
+        onClick={() => navigate("/signup")}
+        className="text-sm font-medium"
       >
-        Sign up
-      </a>
+        Create account
+      </Button>
     </div>
   );
 };
-
-export default AuthButtons;

@@ -1,7 +1,7 @@
 import React from "react";
 import Sidebar from "./Sidebar";
 import SearchBar from "./SearchBar";
-import AuthButtons from "./AuthButtons";
+import { AuthButtons } from "./AuthButtons";
 
 interface LayoutProps {
   children: React.ReactNode;

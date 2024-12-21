@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { DocSubsection } from "@/data/docs";
 import { useTranslation } from "react-i18next";
+import { renderMarkdown } from '@/utils/markdown';
 
 interface TableOfContentsProps {
   subsection: DocSubsection;
@@ -66,7 +67,7 @@ const TableOfContents = ({ subsection }: TableOfContentsProps) => {
                     isActive ? "text-primary font-medium" : "text-gray-600"
                   }`}
                 >
-                  {section.title}
+                  {renderMarkdown(section.title)}
                 </a>
               </li>
             );

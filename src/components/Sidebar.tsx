@@ -4,6 +4,7 @@ import { getDocumentationSections } from "@/data/docs";
 import { ChevronDown, ChevronRight, Menu } from "lucide-react";
 import LanguageSelector from "./LanguageSelector";
 import { useTranslation } from "react-i18next";
+import { renderMarkdown } from '@/utils/markdown';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
@@ -52,8 +53,8 @@ const Sidebar = () => {
                       onClick={() => toggleSection(section.id)}
                       className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
                     >
-                      <span className="font-medium text-gray-900">
-                        {section.title}
+                      <span className="flex-1 text-sm font-semibold">
+                        {renderMarkdown(section.title)}
                       </span>
                       {expandedSections.includes(section.id) ? (
                         <ChevronDown size={16} />
@@ -69,7 +70,9 @@ const Sidebar = () => {
                             to={`/${section.id}/${subsection.id}`}
                             className="block px-2 py-1.5 text-sm text-gray-600 hover:text-primary transition-colors"
                           >
-                            {subsection.title}
+                            <span className="text-sm">
+                              {renderMarkdown(subsection.title)}
+                            </span>
                           </Link>
                         ))}
                       </div>

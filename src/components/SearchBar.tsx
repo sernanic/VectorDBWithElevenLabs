@@ -4,6 +4,7 @@ import { getDocumentationSections } from "@/data/docs";
 import { Search, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { renderMarkdown } from '@/utils/markdown';
 
 type SearchResult = {
   item: {
@@ -134,9 +135,13 @@ const SearchBar = () => {
               onClick={() => handleResultClick(item)}
               className="w-full px-4 py-2 text-left hover:bg-gray-100 flex flex-col"
             >
-              <span className="font-medium">{item.title}</span>
+              <div className="text-sm font-medium">
+                {renderMarkdown(item.title)}
+              </div>
               {item.parentTitle && (
-                <span className="text-sm text-gray-500">{item.parentTitle}</span>
+                <div className="text-xs text-gray-500">
+                  {renderMarkdown(item.parentTitle)}
+                </div>
               )}
             </button>
           ))}
