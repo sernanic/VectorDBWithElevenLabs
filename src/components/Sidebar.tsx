@@ -45,25 +45,16 @@ const Sidebar = () => {
       </button>
 
       <aside
-        className={`h-screen bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-0 z-40
+        className={`h-screen bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40
           ${isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"} 
           lg:translate-x-0 
           ${isDesktopOpen ? "lg:w-64" : "lg:w-16"}
         `}
       >
         {/* Full sidebar content */}
-        <div className={`h-full flex flex-col ${!isDesktopOpen ? "lg:hidden" : ""}`}>
+        <div className={`h-[calc(100vh-4rem)] flex flex-col ${!isDesktopOpen ? "lg:hidden" : ""}`}>
           <div className="flex-1 overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl font-bold text-primary">Mobiwork Docs</h1>
-                <button
-                  onClick={toggleDesktopSidebar}
-                  className="hidden lg:flex p-2 rounded-md hover:bg-gray-50"
-                >
-                  <ChevronLeft size={20} className="text-gray-500" />
-                </button>
-              </div>
               <nav className="space-y-4">
                 {sections.map((section) => (
                   <div key={section.id}>
@@ -124,7 +115,7 @@ const Sidebar = () => {
       </aside>
 
       {/* Main content margin adjustment */}
-      <style jsx global>{`
+      <style data-jsx="true" data-global="true">{`
         @media (min-width: 1024px) {
           main {
             margin-left: ${isDesktopOpen ? '6rem' : '4rem'};

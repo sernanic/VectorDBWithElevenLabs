@@ -4,6 +4,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DialogTitle } from '@radix-ui/react-dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 interface Message {
   id: string;
@@ -12,12 +14,15 @@ interface Message {
   timestamp: Date;
 }
 
+const API_BASE_URL = 'http://localhost:8002/api/v1/chatbot';
+
 export const ChatButton = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
@@ -30,18 +35,42 @@ export const ChatButton = () => {
 
     setMessages((prev) => [...prev, newMessage]);
     setInputMessage('');
+    setIsLoading(true);
 
-    // TODO: Implement LLM integration here
-    // For now, just add a mock response
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: inputMessage }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: "I'm a placeholder response. LLM integration coming soon!",
+        id: Date.now().toString(),
+        content: data, // Assuming the response is a string
         sender: 'assistant',
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
-    }, 1000);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: 'Error: Unable to get a response from the assistant.',
+        sender: 'assistant',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,6 +85,9 @@ export const ChatButton = () => {
         </Button>
       </SheetTrigger>
       <SheetContent className="w-[400px] sm:w-[540px]" side="right">
+        <VisuallyHidden>
+          <DialogTitle>Documentation Assistant</DialogTitle>
+        </VisuallyHidden>
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b pb-4">
             <h2 className="text-lg font-semibold">Documentation Assistant</h2>
@@ -84,6 +116,11 @@ export const ChatButton = () => {
                   </div>
                 </div>
               ))}
+              {isLoading && (
+                <div className="flex justify-center">
+                  <div className="loader">Loading...</div>
+                </div>
+              )}
             </div>
           </ScrollArea>
 
@@ -95,7 +132,7 @@ export const ChatButton = () => {
                 placeholder="Ask a question about the documentation..."
                 className="flex-1"
               />
-              <Button type="submit">Send</Button>
+              <Button type="submit" disabled={isLoading}>Send</Button>
             </div>
           </form>
         </div>

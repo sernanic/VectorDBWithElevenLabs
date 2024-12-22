@@ -1,22 +1,24 @@
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import Markdoc from '@markdoc/markdoc';
+
+const API_BASE_URL = 'http://localhost:8002/api/v1';
+
+interface TableOfContentHeader {
+  id: string;
+  title: string;
+  level: number;
+  children: string[];
+}
+
+interface TableOfContentData {
+  headers: TableOfContentHeader[];
+  structure: { [key: string]: TableOfContentHeader };
+}
 
 interface PageContent {
   pageUrl: string;
   pageMD: string;
   tableOfContentMD: string;
 }
-
-// Helper function to encode the URL for Firestore
-const encodeUrlForFirestore = (url: string): string => {
-  return url.replace(/^\//, '').replace(/\//g, '_');
-};
-
-// Helper function to decode the Firestore ID back to URL
-const decodeFirestoreId = (id: string): string => {
-  return '/' + id.replace(/_/g, '/');
-};
 
 // Helper function to format content with proper headers
 const formatContentWithHeaders = (content: string): string => {
@@ -30,79 +32,118 @@ const formatContentWithHeaders = (content: string): string => {
 };
 
 // Helper function to extract headers from markdown content
-const extractHeaders = (markdown: string): string => {
+const extractHeaders = (markdown: string): TableOfContentData => {
   const lines = markdown.split('\n');
-  const headers = lines
-    .filter(line => line.trim().startsWith('#'))
-    .map(line => {
-      // Preserve the original header level and text
-      const match = line.match(/^(#+)\s+(.+)$/);
-      if (match) {
-        const [, hashes, text] = match;
-        // Create an ID from the header text
-        const id = text
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '');
-        return `${hashes} [${text}](#${id})`;
-      }
-      return line;
-    })
-    .join('\n');
+  const headers: TableOfContentHeader[] = [];
+  const structure: { [key: string]: TableOfContentHeader } = {};
 
-  return headers;
+  lines.filter(line => line.trim().startsWith('#')).forEach(line => {
+    const match = line.match(/^(#+)\s+(.+)$/);
+    if (match) {
+      const [, hashes, text] = match;
+      const id = text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      
+      const header: TableOfContentHeader = {
+        id,
+        title: text,
+        level: hashes.length,
+        children: []
+      };
+      
+      headers.push(header);
+      structure[id] = header;
+    }
+  });
+
+  return { headers, structure };
 };
 
-export const getPageContent = async (pageUrl: string): Promise<PageContent | null> => {
+export const getPageContent = async (pageUrl: string, language: string): Promise<PageContent | null> => {
   try {
-    console.log('Getting page content for:', pageUrl);
-    const encodedUrl = encodeUrlForFirestore(pageUrl);
-    console.log('Encoded URL:', encodedUrl);
-    
-    const docRef = doc(db, 'pageContents', encodedUrl);
-    const docSnap = await getDoc(docRef);
-    console.log('Document exists:', docSnap.exists());
-    
-    if (docSnap.exists()) {
-      const data = docSnap.data() as PageContent;
-      console.log('Retrieved data:', data);
-      return {
-        pageUrl: decodeFirestoreId(encodedUrl),
-        pageMD: data.pageMD,
-        tableOfContentMD: data.tableOfContentMD,
-      };
+    if (!pageUrl || !language) {
+      console.warn('Missing required parameters:', { pageUrl, language });
+      return null;
     }
-    return null;
+
+    // Remove leading and trailing slashes and split
+    const parts = pageUrl.split('/').filter(Boolean);
+    if (parts.length !== 2) {
+      console.warn('Invalid pageUrl format:', pageUrl);
+      return null;
+    }
+
+    const [sectionId, subsectionId] = parts;
+    console.log('Fetching content:', { sectionId, subsectionId, language });
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/${language}/${sectionId}-${subsectionId}`
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`API request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const tableOfContent = data.tableOfContent ? data.tableOfContent : extractHeaders(data.pageContent);
+
+    return {
+      pageUrl,
+      pageMD: data.pageContent,
+      tableOfContentMD: JSON.stringify(tableOfContent)
+    };
   } catch (error) {
     console.error('Error fetching page content:', error);
     throw error;
   }
 };
 
-export const savePageContent = async (pageUrl: string, markdown: string): Promise<void> => {
+export const savePageContent = async (pageUrl: string, markdown: string, language: string): Promise<void> => {
   try {
-    console.log('Saving page content for:', pageUrl);
-    const encodedUrl = encodeUrlForFirestore(pageUrl);
-    console.log('Encoded URL:', encodedUrl);
+    if (!pageUrl || !language) {
+      throw new Error('Missing required parameters');
+    }
+
+    // Remove leading and trailing slashes and split
+    const parts = pageUrl.split('/').filter(Boolean);
+    if (parts.length !== 2) {
+      throw new Error('Invalid pageUrl format');
+    }
+
+    const [sectionId, subsectionId] = parts;
+    console.log('Saving content:', { sectionId, subsectionId, language });
     
     // Format content with proper headers if they don't exist
     const formattedContent = markdown.startsWith('#') ? markdown : formatContentWithHeaders(markdown);
-    console.log('Formatted content:', formattedContent);
     
     // Extract headers for table of contents
-    const tableOfContentMD = extractHeaders(formattedContent);
-    console.log('Generated table of contents:', tableOfContentMD);
+    const tableOfContent = extractHeaders(formattedContent);
 
-    const docRef = doc(db, 'pageContents', encodedUrl);
-    const content: PageContent = {
-      pageUrl: decodeFirestoreId(encodedUrl),
-      pageMD: formattedContent,
-      tableOfContentMD,
-    };
-    console.log('Saving content:', content);
-    
-    await setDoc(docRef, content);
-    console.log('Content saved successfully');
+    const response = await fetch(
+      `${API_BASE_URL}/content/${language}/${sectionId}-${subsectionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pageContent: formattedContent,
+          pageURL: pageUrl,
+          tableOfContent
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`);
+    }
+
+    console.log('Successfully saved page content');
   } catch (error) {
     console.error('Error saving page content:', error);
     throw error;

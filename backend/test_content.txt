@@ -1,0 +1,7 @@
+Test content for Langflow processing. This is a simple text file that contains some information about our document.
+
+Document ID: test-doc
+Language: en
+URL: /en/test-doc
+
+The content includes this text that should be processed and stored in AstraDB.

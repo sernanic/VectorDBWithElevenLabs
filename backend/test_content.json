@@ -1,0 +1,9 @@
+{
+    "_id": "test-doc",
+    "language": "en",
+    "content": {
+        "pageContent": "Test content",
+        "pageURL": "/en/test-doc",
+        "tableOfContent": null
+    }
+}

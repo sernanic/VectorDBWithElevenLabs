@@ -6,15 +6,14 @@ import TableOfContents from "./TableOfContents";
 import { EditButton } from "./EditButton";
 import { useToast } from "@/components/ui/use-toast";
 import * as Markdoc from "@markdoc/markdoc";
-import { db } from "@/lib/firebase";
-import { doc, setDoc, collection, getDoc } from "firebase/firestore";
+import { getPageContent, savePageContent } from "@/services/pageContent";
 import { Loader2 } from "lucide-react";
 
 interface TableOfContentHeader {
   id: string;
   title: string;
   level: number;
-  children: string[]; // Array of child header IDs
+  children: string[];
 }
 
 interface TableOfContentData {
@@ -31,34 +30,55 @@ const SubsectionContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const section = sections.find((s) => s.id === sectionId);
+  const subsection = section?.subsections.find((s) => s.id === subsectionId);
+
+  console.log('Current state:', {
+    sectionId,
+    subsectionId,
+    section,
+    subsection,
+    content,
+    defaultContent: subsection?.content
+  });
+
   const fetchContent = async () => {
+    if (!sectionId || !subsectionId || !i18n.language) {
+      console.warn('Missing required parameters:', { sectionId, subsectionId, language: i18n.language });
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const docRef = doc(db, i18n.language, `${sectionId}-${subsectionId}`);
       
       // Create a promise that resolves after 3 seconds
       const timeoutPromise = new Promise((resolve) => {
         setTimeout(() => resolve(null), 3000);
       });
 
-      // Race between the Firestore fetch and the timeout
+      // Race between the API fetch and the timeout
       const result = await Promise.race([
-        getDoc(docRef),
+        getPageContent(`${sectionId}/${subsectionId}`, i18n.language),
         timeoutPromise
       ]);
 
-      if (result && 'exists' in result && result.exists()) {
-        const data = result.data();
-        setContent(data.pageContent);
-        setTableOfContent(data.tableOfContent || null);
+      if (result) {
+        console.log('Custom content found:', result);
+        setContent(result.pageMD);
+        setTableOfContent(result.tableOfContentMD ? JSON.parse(result.tableOfContentMD) : null);
       } else {
         // If timeout won or document doesn't exist, use default content
         const section = sections.find((s) => s.id === sectionId);
         const subsection = section?.subsections.find((s) => s.id === subsectionId);
-        const newContent = subsection?.content || null;
-        setContent(newContent);
-        if (newContent) {
-          setTableOfContent(parseMarkdownHeaders(newContent));
+        console.log('No custom content found, using default:', {
+          section,
+          subsection,
+          defaultContent: subsection?.content
+        });
+        
+        if (subsection?.content) {
+          setContent(subsection.content);
+          setTableOfContent(parseMarkdownHeaders(subsection.content));
         }
       }
     } catch (error) {
@@ -71,10 +91,9 @@ const SubsectionContent = () => {
       // On error, fall back to default content
       const section = sections.find((s) => s.id === sectionId);
       const subsection = section?.subsections.find((s) => s.id === subsectionId);
-      const newContent = subsection?.content || null;
-      setContent(newContent);
-      if (newContent) {
-        setTableOfContent(parseMarkdownHeaders(newContent));
+      if (subsection?.content) {
+        setContent(subsection.content);
+        setTableOfContent(parseMarkdownHeaders(subsection.content));
       }
     } finally {
       setIsLoading(false);
@@ -83,27 +102,20 @@ const SubsectionContent = () => {
 
   // Fetch content when component mounts or language/section/subsection changes
   useEffect(() => {
-    if (sectionId && subsectionId) {
-      fetchContent();
-    }
+    fetchContent();
   }, [i18n.language, sectionId, subsectionId]);
 
-  useEffect(() => {
-    // Initialize table of contents when content changes
-    if (content) {
-      const newTableOfContent = parseMarkdownHeaders(content);
-      setTableOfContent(newTableOfContent);
-    }
-  }, [content]);
-
-  const section = sections.find((s) => s.id === sectionId);
-  const subsection = section?.subsections.find((s) => s.id === subsectionId);
-
   if (!section || !subsection) {
+    console.log('Section or subsection not found:', { section, subsection });
     return <div className="p-8">Section not found</div>;
   }
 
   const renderMarkdown = (content: string) => {
+    if (!content) {
+      console.warn('Attempting to render empty content');
+      return null;
+    }
+
     const ast = Markdoc.parse(content);
     const transformed = Markdoc.transform(ast, {
       nodes: {
@@ -161,40 +173,36 @@ const SubsectionContent = () => {
         currentLevel2 = null;
         currentLevel3 = null;
       } else if (line.startsWith('## ')) {
+        const title = line.substring(3).trim();
+        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const header: TableOfContentHeader = {
+          id,
+          title,
+          level: 2,
+          children: []
+        };
+        headers.push(header);
+        structure[id] = header;
         if (currentLevel1) {
-          const title = line.substring(3).trim();
-          const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          const header: TableOfContentHeader = {
-            id,
-            title,
-            level: 2,
-            children: []
-          };
-          headers.push(header);
-          structure[id] = header;
-          if (currentLevel1) {
-            structure[currentLevel1].children.push(id);
-          }
-          currentLevel2 = id;
-          currentLevel3 = null;
+          structure[currentLevel1].children.push(id);
         }
+        currentLevel2 = id;
+        currentLevel3 = null;
       } else if (line.startsWith('### ')) {
-        if (currentLevel1 && currentLevel2) {
-          const title = line.substring(4).trim();
-          const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          const header: TableOfContentHeader = {
-            id,
-            title,
-            level: 3,
-            children: []
-          };
-          headers.push(header);
-          structure[id] = header;
-          if (currentLevel2) {
-            structure[currentLevel2].children.push(id);
-          }
-          currentLevel3 = id;
+        const title = line.substring(4).trim();
+        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const header: TableOfContentHeader = {
+          id,
+          title,
+          level: 3,
+          children: []
+        };
+        headers.push(header);
+        structure[id] = header;
+        if (currentLevel2) {
+          structure[currentLevel2].children.push(id);
         }
+        currentLevel3 = id;
       }
     });
 
@@ -202,32 +210,22 @@ const SubsectionContent = () => {
   };
 
   const handleSaveContent = async (newContent: string) => {
+    if (!sectionId || !subsectionId || !i18n.language) {
+      console.warn('Missing required parameters:', { sectionId, subsectionId, language: i18n.language });
+      return;
+    }
+
     try {
-      const currentLanguage = i18n.language;
-      const tableOfContent = parseMarkdownHeaders(newContent);
+      await savePageContent(`${sectionId}/${subsectionId}`, newContent, i18n.language);
 
-      // Create the document data
-      const docData = {
-        pageContent: newContent,
-        pageURL: `/${sectionId}/${subsectionId}`,
-        tableOfContent
-      };
-
-      // Reference to the language collection and document
-      const languageCollectionRef = collection(db, currentLanguage);
-      const docRef = doc(languageCollectionRef, `${sectionId}-${subsectionId}`);
-
-      // Save to Firestore
-      await setDoc(docRef, docData);
-      
       // Update local state
       setContent(newContent);
-      setTableOfContent(tableOfContent);
+      const parsedTableOfContent = parseMarkdownHeaders(newContent);
+      setTableOfContent(parsedTableOfContent);
 
-      // Show success toast
       toast({
-        title: "Content saved",
-        description: "The content has been saved to the database",
+        title: "Success",
+        description: "Content saved successfully",
       });
 
       // Update sections state
@@ -256,6 +254,9 @@ const SubsectionContent = () => {
     }
   };
 
+  const displayContent = content || subsection.content;
+  console.log('Display content:', { content, defaultContent: subsection.content, displayContent });
+
   return (
     <div className="flex flex-col md:flex-row relative">
       <div className="w-full md:w-3/4 p-8">
@@ -264,20 +265,24 @@ const SubsectionContent = () => {
             <div className="flex items-center justify-center min-h-[200px]">
               <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
             </div>
+          ) : displayContent ? (
+            renderMarkdown(displayContent)
           ) : (
-            content !== null ? renderMarkdown(content) : renderMarkdown(subsection.content)
+            <div>No content available</div>
           )}
         </div>
         <EditButton 
-          content={content || subsection.content} 
+          content={displayContent || ''} 
           onSave={handleSaveContent} 
         />
       </div>
       <div className="hidden md:block w-1/4 fixed top-20 right-0 h-[calc(100vh-5rem)] overflow-y-auto p-4">
-        <TableOfContents 
-          content={content || subsection.content} 
-          tableOfContent={tableOfContent}
-        />
+        {displayContent && (
+          <TableOfContents 
+            content={displayContent} 
+            tableOfContent={tableOfContent || parseMarkdownHeaders(displayContent)}
+          />
+        )}
       </div>
     </div>
   );
