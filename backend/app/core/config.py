@@ -17,24 +17,18 @@ class Settings(BaseSettings):
     ]
     
     # MongoDB Settings
-    MONGODB_URL: str = "mongodb+srv://sernan100:m5Ax0YYx4FvocvfA@customersupportrag.ktyg5.mongodb.net/?retryWrites=true&w=majority&appName=customerSupportRag"
-    MONGODB_DATABASE: str = "customerSupportRag"
+    MONGODB_URL: str
+    MONGODB_DATABASE: str
     
     # OpenAI Settings
-    OPENAI_API_KEY: str = "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"
+    OPENAI_API_KEY: str
+    
+    # Pinecone Settings
+    PINECONE_API_KEY: str
+    PINECONE_ASSISTANT_NAME: str
     
     # Environment Settings
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
-    
-    # Added missing variables
-    ASTRA_DB_API_ENDPOINT: str
-    ASTRA_DB_APPLICATION_TOKEN: str
-    COLLECTION_NAME: str
-    FLOW_ID: str
-    BASE_API_URL: str
-    LANGFLOW_ID: str
-    APPLICATION_TOKEN: str
-    ENDPOINT: str
 
     class Config:
         env_file = ".env"

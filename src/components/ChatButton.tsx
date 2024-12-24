@@ -38,12 +38,16 @@ export const ChatButton = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/message`, {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: inputMessage }),
+        body: JSON.stringify({
+          messages: [{ content: inputMessage, role: 'user' }],
+          stream: false,
+          filter: null,
+        }),
       });
 
       if (!response.ok) {
@@ -53,7 +57,7 @@ export const ChatButton = () => {
       const data = await response.json();
       const assistantMessage: Message = {
         id: Date.now().toString(),
-        content: data, // Assuming the response is a string
+        content: data.content,
         sender: 'assistant',
         timestamp: new Date(),
       };
