@@ -1,9 +1,42 @@
-from fastapi import APIRouter, HTTPException, status
-from ..schemas.content import PageContentCreate, PageContentResponse, PageContentInDB
+from fastapi import APIRouter, HTTPException, status, Depends
+from ..schemas.content import PageContentCreate, PageContentResponse
 from ..services.content_service import content_service
 import logging
+from pinecone import Pinecone
+from dotenv import load_dotenv
+import os
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Now you can access the environment variables
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME")
+
+# Configure logging
 logger = logging.getLogger(__name__)
+
+# Initialize Pinecone client function
+def get_pinecone_client():
+    try:
+        if not PINECONE_API_KEY:
+            logger.error("PINECONE_API_KEY is not set.")
+            raise HTTPException(status_code=500, detail="PINECONE_API_KEY is not set.")
+        return Pinecone(api_key=PINECONE_API_KEY)
+    except Exception as e:
+        logger.error(f"Failed to initialize Pinecone client: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to initialize Pinecone client")
+
+# Get Pinecone Assistant function
+def get_assistant(pc: Pinecone = Depends(get_pinecone_client)):
+    try:
+        if not PINECONE_ASSISTANT_NAME:
+            logger.error("PINECONE_ASSISTANT_NAME is not set.")
+            raise HTTPException(status_code=500, detail="PINECONE_ASSISTANT_NAME is not set.")
+        return pc.assistant.Assistant(assistant_name=PINECONE_ASSISTANT_NAME)
+    except Exception as e:
+        logger.error(f"Failed to get Pinecone assistant: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get Pinecone assistant")
 
 router = APIRouter(
     prefix="/content",
@@ -53,6 +86,8 @@ async def save_page_content(
         logger.info(f"POST request to save page content: {language}/{section_id}-{subsection_id}")
         logger.debug(f"Content data: {content}")
         content_id = f"{section_id}-{subsection_id}"
+        
+        # Save content using the content service (which handles MongoDB, Astra DB, and Pinecone)
         saved_content = await content_service.save_content(language, content_id, content)
         
         logger.info(f"Successfully saved page content: {language}/{section_id}-{subsection_id}")
