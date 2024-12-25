@@ -8,8 +8,12 @@ import { renderMarkdown } from '@/utils/markdown';
 import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "./ui/button";
 
-const Sidebar = () => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  toggleMobileSidebar?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSidebar }) => {
   const [isDesktopOpen, setIsDesktopOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const { i18n } = useTranslation();

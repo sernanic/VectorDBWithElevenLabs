@@ -5,6 +5,7 @@ import SubsectionContent from "@/components/SubsectionContent";
 import { documentationSections } from "@/data/docs";
 import { getPageContent } from "@/services/pageContent";
 import { useToast } from "@/components/ui/use-toast";
+import { PageContent } from "@/types/content";
 
 const Subsection = () => {
   const { sectionId, subsectionId } = useParams();
@@ -14,7 +15,7 @@ const Subsection = () => {
   
   const section = documentationSections.find((s) => s.id === sectionId);
   const subsection = section?.subsections.find((s) => s.id === subsectionId);
-  const pageUrl = sectionId && subsectionId ? `/${sectionId}/${subsectionId}` : '';
+  const pageUrl = sectionId && subsectionId ? `${sectionId}/${subsectionId}` : '';
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -25,15 +26,11 @@ const Subsection = () => {
 
       try {
         setIsLoading(true);
-        console.log('Fetching content for URL:', pageUrl);
-        const pageContent = await getPageContent(pageUrl);
-        console.log('Fetched content:', pageContent);
+        const pageContent = await getPageContent(pageUrl) as PageContent;
         
         if (pageContent) {
-          console.log('Setting custom content from Firestore');
           setContent(pageContent.pageMD);
         } else {
-          console.log('No custom content found, using default');
           setContent(null);
         }
       } catch (error) {
@@ -66,12 +63,14 @@ const Subsection = () => {
 
   return (
     <Layout>
-      <SubsectionContent 
-        subsection={subsection} 
-        customContent={content}
-        isLoading={isLoading}
-        pageUrl={pageUrl}
-      />
+      {subsection && (
+        <SubsectionContent 
+          subsection={subsection}
+          customContent={content}
+          isLoading={isLoading}
+          pageUrl={pageUrl}
+        />
+      )}
     </Layout>
   );
 };

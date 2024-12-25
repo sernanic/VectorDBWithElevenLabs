@@ -58,10 +58,10 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
     // Markdoc validation
     try {
       const ast = Markdoc.parse(content);
-      const errors = Markdoc.validate(ast);
+      const validationErrors = Markdoc.validate(ast);
       
-      errors.forEach(error => {
-        errors.push(`Line ${error.lines[0]}: ${error.error}`);
+      validationErrors.forEach(error => {
+        errors.push(`Line ${error.lines?.[0] || 'unknown'}: ${error.error}`);
       });
     } catch (error) {
       errors.push('Invalid markdown syntax');

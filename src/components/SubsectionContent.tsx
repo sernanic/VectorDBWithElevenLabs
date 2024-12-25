@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import * as Markdoc from "@markdoc/markdoc";
 import { getPageContent, savePageContent } from "@/services/pageContent";
 import { Loader2 } from "lucide-react";
+import { PageContent, DocSubsection } from '@/types/content';
 
 interface TableOfContentHeader {
   id: string;
@@ -33,49 +34,19 @@ const SubsectionContent = () => {
   const section = sections.find((s) => s.id === sectionId);
   const subsection = section?.subsections.find((s) => s.id === subsectionId);
 
-  console.log('Current state:', {
-    sectionId,
-    subsectionId,
-    section,
-    subsection,
-    content,
-    defaultContent: subsection?.content
-  });
-
   const fetchContent = async () => {
     if (!sectionId || !subsectionId || !i18n.language) {
-      console.warn('Missing required parameters:', { sectionId, subsectionId, language: i18n.language });
       return;
     }
 
     try {
       setIsLoading(true);
-      
-      // Create a promise that resolves after 3 seconds
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => resolve(null), 3000);
-      });
+      const pageContent = await getPageContent(`${sectionId}/${subsectionId}`, i18n.language) as PageContent;
 
-      // Race between the API fetch and the timeout
-      const result = await Promise.race([
-        getPageContent(`${sectionId}/${subsectionId}`, i18n.language),
-        timeoutPromise
-      ]);
-
-      if (result) {
-        console.log('Custom content found:', result);
-        setContent(result.pageMD);
-        setTableOfContent(result.tableOfContentMD ? JSON.parse(result.tableOfContentMD) : null);
+      if (pageContent) {
+        setContent(pageContent.pageMD);
+        setTableOfContent(pageContent.tableOfContentMD ? JSON.parse(pageContent.tableOfContentMD) : null);
       } else {
-        // If timeout won or document doesn't exist, use default content
-        const section = sections.find((s) => s.id === sectionId);
-        const subsection = section?.subsections.find((s) => s.id === subsectionId);
-        console.log('No custom content found, using default:', {
-          section,
-          subsection,
-          defaultContent: subsection?.content
-        });
-        
         if (subsection?.content) {
           setContent(subsection.content);
           setTableOfContent(parseMarkdownHeaders(subsection.content));
@@ -88,9 +59,6 @@ const SubsectionContent = () => {
         description: "Failed to fetch content",
         variant: "destructive",
       });
-      // On error, fall back to default content
-      const section = sections.find((s) => s.id === sectionId);
-      const subsection = section?.subsections.find((s) => s.id === subsectionId);
       if (subsection?.content) {
         setContent(subsection.content);
         setTableOfContent(parseMarkdownHeaders(subsection.content));
@@ -100,19 +68,16 @@ const SubsectionContent = () => {
     }
   };
 
-  // Fetch content when component mounts or language/section/subsection changes
   useEffect(() => {
     fetchContent();
   }, [i18n.language, sectionId, subsectionId]);
 
   if (!section || !subsection) {
-    console.log('Section or subsection not found:', { section, subsection });
     return <div className="p-8">Section not found</div>;
   }
 
   const renderMarkdown = (content: string) => {
     if (!content) {
-      console.warn('Attempting to render empty content');
       return null;
     }
 
@@ -211,14 +176,11 @@ const SubsectionContent = () => {
 
   const handleSaveContent = async (newContent: string) => {
     if (!sectionId || !subsectionId || !i18n.language) {
-      console.warn('Missing required parameters:', { sectionId, subsectionId, language: i18n.language });
       return;
     }
 
     try {
       await savePageContent(`${sectionId}/${subsectionId}`, newContent, i18n.language);
-
-      // Update local state
       setContent(newContent);
       const parsedTableOfContent = parseMarkdownHeaders(newContent);
       setTableOfContent(parsedTableOfContent);
@@ -228,7 +190,6 @@ const SubsectionContent = () => {
         description: "Content saved successfully",
       });
 
-      // Update sections state
       const updatedSections = sections.map(s => {
         if (s.id === sectionId) {
           return {
@@ -255,7 +216,6 @@ const SubsectionContent = () => {
   };
 
   const displayContent = content || subsection.content;
-  console.log('Display content:', { content, defaultContent: subsection.content, displayContent });
 
   return (
     <div className="flex flex-col md:flex-row relative">
