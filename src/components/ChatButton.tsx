@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { motion } from 'framer-motion';
 
 interface Message {
   id: string;
@@ -88,59 +89,66 @@ export const ChatButton = () => {
           <MessageCircle className="h-6 w-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px]" side="right">
-        <VisuallyHidden>
-          <DialogTitle>Documentation Assistant</DialogTitle>
-        </VisuallyHidden>
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b pb-4">
-            <h2 className="text-lg font-semibold">Documentation Assistant</h2>
-          </div>
-          
-          <ScrollArea className="flex-1 py-4">
-            <div className="flex flex-col gap-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
+      <motion.div
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 100 }}
+        transition={{ duration: 0.3 }}
+      >
+        <SheetContent className="w-[400px] sm:w-[540px]" side="right">
+          <VisuallyHidden>
+            <DialogTitle>Documentation Assistant</DialogTitle>
+          </VisuallyHidden>
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b pb-4">
+              <h2 className="text-lg font-semibold">Documentation Assistant</h2>
+            </div>
+            
+            <ScrollArea className="flex-1 py-4">
+              <div className="flex flex-col gap-4">
+                {messages.map((message) => (
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      message.sender === 'user'
-                        ? 'bg-primary text-white'
-                        : 'bg-muted text-white'
+                    key={message.id}
+                    className={`flex ${
+                      message.sender === 'user' ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    <p>{message.content}</p>
-                    <span className="text-xs text-white/70">
-                      {message.timestamp.toLocaleTimeString()}
-                    </span>
+                    <div
+                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                        message.sender === 'user'
+                          ? 'bg-primary text-white'
+                          : 'bg-muted text-white'
+                      }`}
+                    >
+                      <p>{message.content}</p>
+                      <span className="text-xs text-white/70">
+                        {message.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-center">
-                  <div className="loader">Loading...</div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-center">
+                    <div className="loader">Loading...</div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
 
-          <form onSubmit={handleSendMessage} className="border-t pt-4">
-            <div className="flex gap-2">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask a question about the documentation..."
-                className="flex-1"
-              />
-              <Button type="submit" disabled={isLoading}>Send</Button>
-            </div>
-          </form>
-        </div>
-      </SheetContent>
+            <form onSubmit={handleSendMessage} className="border-t pt-4">
+              <div className="flex gap-2">
+                <Input
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Ask a question about the documentation..."
+                  className="flex-1"
+                />
+                <Button type="submit" disabled={isLoading}>Send</Button>
+              </div>
+            </form>
+          </div>
+        </SheetContent>
+      </motion.div>
     </Sheet>
   );
 };

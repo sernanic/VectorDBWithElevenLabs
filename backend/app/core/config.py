@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     MONGODB_DATABASE: str
     
+    # ElevenLabs Settings
+    XI_API_KEY: str
+    NEXT_PUBLIC_ELEVENLABS_AGENT_ID: str
+    
     # OpenAI Settings
     OPENAI_API_KEY: str
     

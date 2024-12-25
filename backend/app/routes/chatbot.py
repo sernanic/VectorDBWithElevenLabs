@@ -6,6 +6,7 @@ import logging
 from pinecone import Pinecone
 from pinecone_plugins.assistant.models.chat import Message
 from dotenv import load_dotenv
+import httpx
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,6 +14,7 @@ load_dotenv()
 # Now you can access the environment variables
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME")
+XI_API_KEY = os.getenv("XI_API_KEY")
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -73,6 +75,9 @@ class ChatResponse(BaseModel):
     content: str
     role: str
     citations: Optional[List[Dict[str, Any]]] = None
+
+class ElevenLabsRequest(BaseModel):
+    agent_id: str
 
 def convert_citations(response_citations):
     """Convert Pinecone citations to dictionary format."""
@@ -148,3 +153,33 @@ async def chat_with_assistant(
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process chat: {str(e)}")
+
+@router.post("/elevenlabs/signed-url")
+async def get_elevenlabs_signed_url(request: ElevenLabsRequest):
+    """Get a signed URL from ElevenLabs for real-time conversation."""
+    if not XI_API_KEY:
+        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
+    
+    headers = {"xi-api-key": XI_API_KEY}
+    url = f"https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id={request.agent_id}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            logger.info(f"ElevenLabs response status: {response.status_code}")
+            logger.info(f"ElevenLabs response body: {response.text}")
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code, 
+                    detail=f"Failed to get signed URL from ElevenLabs: {response.text}"
+                )
+            
+            data = response.json()
+            logger.info(f"Parsed response data: {data}")
+            
+            # Make sure we're returning the exact structure expected by the frontend
+            return {"signed_url": data.get("signed_url")}
+    except Exception as e:
+        logger.error(f"Error in get_elevenlabs_signed_url: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error connecting to ElevenLabs: {str(e)}")
