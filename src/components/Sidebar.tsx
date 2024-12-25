@@ -10,10 +10,10 @@ import { Button } from "./ui/button";
 
 interface SidebarProps {
   isMobileOpen?: boolean;
-  toggleMobileSidebar?: () => void;
+  onToggleMobile?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSidebar: onToggleMobile }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile }) => {
   const [isDesktopOpen, setIsDesktopOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const { i18n } = useTranslation();
@@ -21,7 +21,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  // Update sections when language changes
   useEffect(() => {
     setSections(getDocumentationSections());
   }, [i18n.language]);
@@ -40,7 +39,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
 
   return (
     <>
-      {/* Mobile menu button */}
       <button
         onClick={onToggleMobile}
         className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-md hover:bg-gray-100"
@@ -49,17 +47,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
       </button>
 
       <aside
-        className={`h-screen bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40
+        className={`flex flex-col bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40 h-[calc(100vh-4rem)]
           ${isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"} 
           lg:translate-x-0 
           ${isDesktopOpen ? "lg:w-64" : "lg:w-16"}
         `}
       >
         {/* Full sidebar content */}
-        <div className={`h-[calc(100vh-4rem)] flex flex-col ${!isDesktopOpen ? "lg:hidden" : ""}`}>
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-6">
-              <nav className="space-y-4">
+        <div className={`flex flex-col h-full ${!isDesktopOpen ? "lg:hidden" : ""}`}>
+          {/* Scrollable navigation section */}
+          <div className="flex-1 min-h-0"> {/* min-h-0 is crucial for nested flex scroll */}
+            <div className="h-full overflow-y-auto">
+              <nav className="p-6 space-y-4">
                 {sections.map((section) => (
                   <div key={section.id}>
                     <button
@@ -95,10 +94,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
               </nav>
             </div>
           </div>
-          <div className={`border-t border-border ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
+
+          {/* Fixed footer section */}
+          <div className={`border-t border-border p-4 ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
             <LanguageSelector />
             {user?.isAdmin && (
-              <div className="px-6 py-2">
+              <div className="mt-2">
                 <Button 
                   variant="outline" 
                   className="w-full"
@@ -123,10 +124,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
               </button>
             </div>
           </div>
-          <div className="mt-auto">
+          <div className="mt-auto p-4">
             <LanguageSelector collapsed />
             {user?.isAdmin && (
-              <div className="px-2 py-2">
+              <div className="mt-2">
                 <Button 
                   variant="outline" 
                   size="icon"
