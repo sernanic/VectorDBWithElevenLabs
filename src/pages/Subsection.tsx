@@ -1,44 +1,78 @@
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getDocumentationSections } from "@/data/docs";
+import Layout from "@/components/Layout";
 import SubsectionContent from "@/components/SubsectionContent";
-import { useQuery } from "@tanstack/react-query";
+import { documentationSections } from "@/data/docs";
 import { getPageContent } from "@/services/pageContent";
+import { useToast } from "@/components/ui/use-toast";
 
 const Subsection = () => {
-  const { sectionId, subsectionId } = useParams<{ sectionId: string; subsectionId: string }>();
-  const pageUrl = `${sectionId}/${subsectionId}`;
+  const { sectionId, subsectionId } = useParams();
+  const [content, setContent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  
+  const section = documentationSections.find((s) => s.id === sectionId);
+  const subsection = section?.subsections.find((s) => s.id === subsectionId);
+  const pageUrl = sectionId && subsectionId ? `/${sectionId}/${subsectionId}` : '';
 
-  const { data: customContent, isLoading } = useQuery({
-    queryKey: ['pageContent', pageUrl],
-    queryFn: async () => getPageContent(pageUrl),
-    enabled: !!pageUrl,
-    staleTime: 1000 * 60 * 5 // 5 minutes
-  });
+  useEffect(() => {
+    const fetchContent = async () => {
+      if (!pageUrl) {
+        setIsLoading(false);
+        return;
+      }
 
-  const subsection = {
-    id: subsectionId || '',
-    title: '',
-    content: ''
-  };
+      try {
+        setIsLoading(true);
+        console.log('Fetching content for URL:', pageUrl);
+        const pageContent = await getPageContent(pageUrl);
+        console.log('Fetched content:', pageContent);
+        
+        if (pageContent) {
+          console.log('Setting custom content from Firestore');
+          setContent(pageContent.pageMD);
+        } else {
+          console.log('No custom content found, using default');
+          setContent(null);
+        }
+      } catch (error) {
+        console.error('Error fetching content:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load page content. Using default content instead.",
+          variant: "destructive",
+        });
+        setContent(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const sections = getDocumentationSections();
-  const section = sections.find(s => s.id === sectionId);
-  const currentSubsection = section?.subsections.find(s => s.id === subsectionId);
+    fetchContent();
+  }, [pageUrl, toast]);
 
-  if (currentSubsection) {
-    subsection.title = currentSubsection.title;
-    subsection.content = currentSubsection.content;
+  if (!subsection) {
+    return (
+      <Layout>
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Subsection not found
+          </h1>
+        </div>
+      </Layout>
+    );
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <Layout>
       <SubsectionContent 
         subsection={subsection} 
-        customContent={customContent?.pageMD || ''} 
-        isLoading={isLoading} 
-        pageUrl={pageUrl} 
+        customContent={content}
+        isLoading={isLoading}
+        pageUrl={pageUrl}
       />
-    </div>
+    </Layout>
   );
 };
 

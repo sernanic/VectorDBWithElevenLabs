@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AuthState } from '@/types/auth';
+import { User } from 'firebase/auth';
+
+interface AuthState {
+  user: User | null;
+  isLoading: boolean;
+  setUser: (user: User | null) => void;
+  setLoading: (isLoading: boolean) => void;
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(

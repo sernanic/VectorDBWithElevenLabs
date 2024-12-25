@@ -1,26 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getDocumentationSections } from "@/data/docs";
 import { ChevronDown, ChevronRight, Menu, ChevronLeft } from "lucide-react";
 import LanguageSelector from "./LanguageSelector";
 import { useTranslation } from "react-i18next";
 import { renderMarkdown } from '@/utils/markdown';
-import { useAuthStore } from "@/store/useAuthStore";
-import { Button } from "./ui/button";
 
-interface SidebarProps {
-  isMobileOpen?: boolean;
-  onToggleMobile?: () => void;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile }) => {
+const Sidebar = () => {
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopOpen, setIsDesktopOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const { i18n } = useTranslation();
   const [sections, setSections] = useState(getDocumentationSections());
-  const { user } = useAuthStore();
-  const navigate = useNavigate();
 
+  // Update sections when language changes
   useEffect(() => {
     setSections(getDocumentationSections());
   }, [i18n.language]);
@@ -33,32 +26,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
     );
   };
 
+  const toggleMobileSidebar = () => {
+    setIsMobileOpen(!isMobileOpen);
+  };
+
   const toggleDesktopSidebar = () => {
     setIsDesktopOpen(!isDesktopOpen);
   };
 
   return (
     <>
+      {/* Mobile menu button */}
       <button
-        onClick={onToggleMobile}
+        onClick={toggleMobileSidebar}
         className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-md hover:bg-gray-100"
       >
         <Menu size={20} />
       </button>
 
       <aside
-        className={`flex flex-col bg-white transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40 h-[calc(100vh-4rem)]
+        className={`h-screen bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40
           ${isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"} 
           lg:translate-x-0 
           ${isDesktopOpen ? "lg:w-64" : "lg:w-16"}
         `}
       >
         {/* Full sidebar content */}
-        <div className={`flex flex-col h-full ${!isDesktopOpen ? "lg:hidden" : ""}`}>
-          {/* Scrollable navigation section */}
-          <div className="flex-1 min-h-0"> {/* min-h-0 is crucial for nested flex scroll */}
-            <div className="h-full overflow-y-auto">
-              <nav className="p-6 space-y-4">
+        <div className={`h-[calc(100vh-4rem)] flex flex-col ${!isDesktopOpen ? "lg:hidden" : ""}`}>
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6">
+              <nav className="space-y-4">
                 {sections.map((section) => (
                   <div key={section.id}>
                     <button
@@ -94,21 +91,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
               </nav>
             </div>
           </div>
-
-          {/* Fixed footer section */}
-          <div className={`p-4 bg-white ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
+          <div className={!isDesktopOpen ? "hidden lg:block" : ""}>
             <LanguageSelector />
-            {user?.isAdmin && (
-              <div className="mt-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => navigate('/admin')}
-                >
-                  Admin Portal
-                </Button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -124,29 +108,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
               </button>
             </div>
           </div>
-          <div className="mt-auto p-4">
+          <div className="mt-auto">
             <LanguageSelector collapsed />
-            {user?.isAdmin && (
-              <div className="mt-2">
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => navigate('/admin')}
-                  className="w-full h-8"
-                >
-                  A
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </aside>
 
       {/* Main content margin adjustment */}
-      <style>{`
+      <style data-jsx="true" data-global="true">{`
         @media (min-width: 1024px) {
           main {
-            margin-left: ${isDesktopOpen ? '16rem' : '4rem'};
+            margin-left: ${isDesktopOpen ? '6rem' : '4rem'};
             transition: margin-left 200ms ease-in-out;
           }
         }
