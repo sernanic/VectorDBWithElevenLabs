@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getDocumentationSections } from "@/data/docs";
 import { ChevronDown, ChevronRight, Menu, ChevronLeft } from "lucide-react";
 import LanguageSelector from "./LanguageSelector";
 import { useTranslation } from "react-i18next";
 import { renderMarkdown } from '@/utils/markdown';
+import { useAuthStore } from "@/store/useAuthStore";
+import { Button } from "./ui/button";
 
 const Sidebar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -12,6 +14,8 @@ const Sidebar = () => {
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const { i18n } = useTranslation();
   const [sections, setSections] = useState(getDocumentationSections());
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   // Update sections when language changes
   useEffect(() => {
@@ -91,8 +95,19 @@ const Sidebar = () => {
               </nav>
             </div>
           </div>
-          <div className={!isDesktopOpen ? "hidden lg:block" : ""}>
+          <div className={`border-t border-border ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
             <LanguageSelector />
+            {user?.isAdmin && (
+              <div className="px-6 py-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => navigate('/admin')}
+                >
+                  Admin Portal
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -110,6 +125,18 @@ const Sidebar = () => {
           </div>
           <div className="mt-auto">
             <LanguageSelector collapsed />
+            {user?.isAdmin && (
+              <div className="px-2 py-2">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => navigate('/admin')}
+                  className="w-full h-8"
+                >
+                  A
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </aside>
