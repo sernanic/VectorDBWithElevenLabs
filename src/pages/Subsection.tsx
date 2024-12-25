@@ -12,7 +12,8 @@ const Subsection = () => {
   const { data: customContent, isLoading } = useQuery({
     queryKey: ['pageContent', pageUrl],
     queryFn: () => getPageContent(pageUrl),
-    enabled: !!pageUrl
+    enabled: !!pageUrl,
+    staleTime: 1000 * 60 * 5 // 5 minutes
   });
 
   const subsection: DocSubsection = {

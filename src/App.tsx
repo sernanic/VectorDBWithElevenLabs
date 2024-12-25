@@ -30,7 +30,7 @@ function App() {
             <div className="min-h-screen bg-background">
               <Header toggleSidebar={toggleMobileSidebar} />
               <div className="flex pt-20">
-                <Sidebar isMobileOpen={isMobileOpen} toggleMobileSidebar={toggleMobileSidebar} />
+                <Sidebar isMobileOpen={isMobileOpen} onToggleMobile={toggleMobileSidebar} />
                 <main className="flex-1 px-4 lg:px-8 py-8">
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
