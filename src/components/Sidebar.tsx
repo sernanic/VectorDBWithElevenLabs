@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
           </div>
 
           {/* Fixed footer section */}
-          <div className={`border-t border-border p-4 ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
+          <div className={`border-t border-border p-4 bg-white ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
             <LanguageSelector />
             {user?.isAdmin && (
               <div className="mt-2">
@@ -143,10 +143,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
       </aside>
 
       {/* Main content margin adjustment */}
-      <style data-jsx="true" data-global="true">{`
+      <style jsx global>{`
         @media (min-width: 1024px) {
           main {
-            margin-left: ${isDesktopOpen ? '6rem' : '4rem'};
+            margin-left: ${isDesktopOpen ? '16rem' : '4rem'};
             transition: margin-left 200ms ease-in-out;
           }
         }

@@ -1,17 +1,16 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import SubsectionContent from '@/components/SubsectionContent';
-import { getPageContent } from '@/services/pageContent';
-import { DocSubsection } from '@/types/content';
+import { useParams } from "react-router-dom";
+import { getDocumentationSections, DocSubsection } from "@/data/docs";
+import SubsectionContent from "@/components/SubsectionContent";
+import { useQuery } from "@tanstack/react-query";
+import { getPageContent } from "@/services/pageContent";
 
 const Subsection = () => {
-  const { sectionId, subsectionId } = useParams<{ sectionId: string; subsectionId: string }>();
+  const { sectionId, subsectionId } = useParams();
   const pageUrl = `${sectionId}/${subsectionId}`;
 
   const { data: customContent, isLoading } = useQuery({
     queryKey: ['pageContent', pageUrl],
-    queryFn: () => getPageContent(pageUrl),
+    queryFn: async () => getPageContent(pageUrl),
     enabled: !!pageUrl,
     staleTime: 1000 * 60 * 5 // 5 minutes
   });
@@ -22,13 +21,22 @@ const Subsection = () => {
     content: ''
   };
 
+  const sections = getDocumentationSections();
+  const section = sections.find(s => s.id === sectionId);
+  const currentSubsection = section?.subsections.find(s => s.id === subsectionId);
+
+  if (currentSubsection) {
+    subsection.title = currentSubsection.title;
+    subsection.content = currentSubsection.content;
+  }
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <SubsectionContent
-        subsection={subsection}
-        customContent={customContent?.pageMD || null}
-        isLoading={isLoading}
-        pageUrl={pageUrl}
+    <div className="max-w-3xl mx-auto">
+      <SubsectionContent 
+        subsection={subsection} 
+        customContent={customContent || ''} 
+        isLoading={isLoading} 
+        pageUrl={pageUrl} 
       />
     </div>
   );
