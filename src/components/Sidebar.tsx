@@ -47,7 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
       </button>
 
       <aside
-        className={`flex flex-col bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40 h-[calc(100vh-4rem)]
+        className={`flex flex-col bg-white transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40 h-[calc(100vh-4rem)]
           ${isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"} 
           lg:translate-x-0 
           ${isDesktopOpen ? "lg:w-64" : "lg:w-16"}
@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
           </div>
 
           {/* Fixed footer section */}
-          <div className={`border-t border-border p-4 bg-white ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
+          <div className={`p-4 bg-white ${!isDesktopOpen ? "hidden lg:block" : ""}`}>
             <LanguageSelector />
             {user?.isAdmin && (
               <div className="mt-2">
@@ -143,7 +143,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onToggleMobile 
       </aside>
 
       {/* Main content margin adjustment */}
-      <style jsx global>{`
+      <style>{`
         @media (min-width: 1024px) {
           main {
             margin-left: ${isDesktopOpen ? '16rem' : '4rem'};

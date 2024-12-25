@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
-import { getDocumentationSections, DocSubsection } from "@/data/docs";
+import { getDocumentationSections } from "@/data/docs";
 import SubsectionContent from "@/components/SubsectionContent";
 import { useQuery } from "@tanstack/react-query";
 import { getPageContent } from "@/services/pageContent";
 
 const Subsection = () => {
-  const { sectionId, subsectionId } = useParams();
+  const { sectionId, subsectionId } = useParams<{ sectionId: string; subsectionId: string }>();
   const pageUrl = `${sectionId}/${subsectionId}`;
 
   const { data: customContent, isLoading } = useQuery({
@@ -15,7 +15,7 @@ const Subsection = () => {
     staleTime: 1000 * 60 * 5 // 5 minutes
   });
 
-  const subsection: DocSubsection = {
+  const subsection = {
     id: subsectionId || '',
     title: '',
     content: ''
@@ -34,7 +34,7 @@ const Subsection = () => {
     <div className="max-w-3xl mx-auto">
       <SubsectionContent 
         subsection={subsection} 
-        customContent={customContent || ''} 
+        customContent={customContent?.pageMD || ''} 
         isLoading={isLoading} 
         pageUrl={pageUrl} 
       />
