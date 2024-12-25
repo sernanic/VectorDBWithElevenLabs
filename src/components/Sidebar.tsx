@@ -13,7 +13,7 @@ interface SidebarProps {
   toggleMobileSidebar?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSidebar }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSidebar: onToggleMobile }) => {
   const [isDesktopOpen, setIsDesktopOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const { i18n } = useTranslation();
@@ -34,10 +34,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
     );
   };
 
-  const toggleMobileSidebar = () => {
-    setIsMobileOpen(!isMobileOpen);
-  };
-
   const toggleDesktopSidebar = () => {
     setIsDesktopOpen(!isDesktopOpen);
   };
@@ -46,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, toggleMobileSid
     <>
       {/* Mobile menu button */}
       <button
-        onClick={toggleMobileSidebar}
+        onClick={onToggleMobile}
         className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-md hover:bg-gray-100"
       >
         <Menu size={20} />
