@@ -3,6 +3,7 @@ import SearchBar from './SearchBar';
 import { AuthButtons } from './AuthButtons';
 import { PhoneIcon } from 'lucide-react';
 import VoiceChat from './VoiceChat';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -10,6 +11,7 @@ interface HeaderProps {
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false);
+  const { user } = useAuthStore();
 
   return (
     <header className="fixed top-0 left-0 right-0 h-20 bg-white border-b border-border z-50 shadow-md">
@@ -44,16 +46,18 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
           <SearchBar />
         </div>
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setIsVoiceChatOpen(!isVoiceChatOpen)}
-            className="bg-secondary text-white p-2 rounded-full hover:bg-secondary-dark transition duration-200"
-          >
-            <PhoneIcon className="w-5 h-5" />
-          </button>
+          {user && (
+            <button 
+              onClick={() => setIsVoiceChatOpen(!isVoiceChatOpen)}
+              className="bg-secondary text-white p-2 rounded-full hover:bg-secondary-dark transition duration-200"
+            >
+              <PhoneIcon className="w-5 h-5" />
+            </button>
+          )}
           <AuthButtons />
         </div>
       </div>
-      <VoiceChat isOpen={isVoiceChatOpen} onClose={() => setIsVoiceChatOpen(false)} />
+      {user && <VoiceChat isOpen={isVoiceChatOpen} onClose={() => setIsVoiceChatOpen(false)} />}
     </header>
   );
 };

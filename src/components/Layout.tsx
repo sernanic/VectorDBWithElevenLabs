@@ -6,7 +6,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="flex h-screen overflow-hidden">
       {children}
     </div>
   );

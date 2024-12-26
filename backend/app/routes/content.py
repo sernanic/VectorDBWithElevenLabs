@@ -1,5 +1,12 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from ..schemas.content import PageContentCreate, PageContentResponse
+from ..schemas.content import (
+    PageContentCreate, 
+    PageContentResponse, 
+    AddSectionRequest, 
+    AddSubsectionRequest,
+    AddSubSubsectionRequest,
+    DocumentStructure
+)
 from ..services.content_service import content_service
 import logging
 from pinecone import Pinecone
@@ -43,24 +50,76 @@ router = APIRouter(
     tags=["content"]
 )
 
-@router.get("/{language}/{section_id}-{subsection_id}", response_model=PageContentResponse)
-async def get_page_content(language: str, section_id: str, subsection_id: str):
+# Structure routes
+@router.get("/structure/{language}", response_model=DocumentStructure)
+async def get_document_structure(language: str):
     """
-    Retrieve page content for a specific language and section
+    Get the entire document structure for a specific language
     """
     try:
-        logger.info(f"GET request for page content: {language}/{section_id}-{subsection_id}")
-        content_id = f"{section_id}-{subsection_id}"
+        logger.info(f"GET request for document structure: {language}")
+        structure = await content_service.get_document_structure(language)
+        logger.info(f"Successfully retrieved document structure for language: {language}")
+        return structure
+    except Exception as e:
+        logger.error(f"Error in get_document_structure: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@router.post("/structure/{language}/section", response_model=DocumentStructure)
+async def add_section(language: str, request: AddSectionRequest):
+    """
+    Add a new section to the document structure
+    """
+    try:
+        logger.info(f"POST request to add section: {language}/{request.section_id}")
+        structure = await content_service.add_section(language, request)
+        logger.info(f"Successfully added section: {language}/{request.section_id}")
+        return structure
+    except Exception as e:
+        logger.error(f"Error in add_section: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@router.post("/structure/{language}/subsection", response_model=DocumentStructure)
+async def add_subsection(language: str, request: AddSubsectionRequest):
+    """
+    Add a new subsection to a section
+    """
+    try:
+        logger.info(f"POST request to add subsection: {language}/{request.section_id}/{request.subsection_id}")
+        structure = await content_service.add_subsection(language, request)
+        logger.info(f"Successfully added subsection: {language}/{request.section_id}/{request.subsection_id}")
+        return structure
+    except Exception as e:
+        logger.error(f"Error in add_subsection: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+# Content routes
+@router.get("/{language}/{content_id}", response_model=PageContentResponse)
+async def get_page_content(language: str, content_id: str):
+    """
+    Retrieve page content for a specific language and content ID
+    """
+    try:
+        logger.info(f"GET request for page content: {language}/{content_id}")
         content = await content_service.get_content(language, content_id)
         
         if not content:
-            logger.warning(f"Content not found: {language}/{section_id}-{subsection_id}")
+            logger.warning(f"Content not found: {language}/{content_id}")
             return PageContentResponse(
                 pageContent="",
                 tableOfContent=None
             )
         
-        logger.info(f"Successfully retrieved page content: {language}/{section_id}-{subsection_id}")
+        logger.info(f"Successfully retrieved page content: {language}/{content_id}")
         return PageContentResponse(
             pageContent=content.pageContent,
             tableOfContent=content.tableOfContent
@@ -87,7 +146,6 @@ async def save_page_content(
         logger.debug(f"Content data: {content}")
         content_id = f"{section_id}-{subsection_id}"
         
-        # Save content using the content service (which handles MongoDB, Astra DB, and Pinecone)
         saved_content = await content_service.save_content(language, content_id, content)
         
         logger.info(f"Successfully saved page content: {language}/{section_id}-{subsection_id}")
@@ -101,3 +159,7 @@ async def save_page_content(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}

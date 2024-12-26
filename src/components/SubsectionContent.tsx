@@ -21,6 +21,11 @@ interface TableOfContentData {
   structure: { [key: string]: TableOfContentHeader };
 }
 
+interface PageContent {
+  pageMD: string;
+  tableOfContentMD: string;
+}
+
 const SubsectionContent = () => {
   const { sectionId, subsectionId } = useParams();
   const { i18n } = useTranslation();
@@ -52,20 +57,23 @@ const SubsectionContent = () => {
       setIsLoading(true);
       
       // Create a promise that resolves after 3 seconds
-      const timeoutPromise = new Promise((resolve) => {
+      const timeoutPromise = new Promise<null>((resolve) => {
         setTimeout(() => resolve(null), 3000);
       });
 
+      // Format the content ID according to the backend's expected format
+      const contentId = `${sectionId}-${subsectionId}`;
+
       // Race between the API fetch and the timeout
       const result = await Promise.race([
-        getPageContent(`${sectionId}/${subsectionId}`, i18n.language),
+        getPageContent(contentId, i18n.language), // Pass language first, then contentId
         timeoutPromise
       ]);
 
       if (result) {
         console.log('Custom content found:', result);
-        setContent(result.pageMD);
-        setTableOfContent(result.tableOfContentMD ? JSON.parse(result.tableOfContentMD) : null);
+        setContent(result.pageContent);
+        setTableOfContent(result.tableOfContent);
       } else {
         // If timeout won or document doesn't exist, use default content
         const section = sections.find((s) => s.id === sectionId);
@@ -124,7 +132,7 @@ const SubsectionContent = () => {
             const attributes = node.transformAttributes(config);
             const children = node.transformChildren(config);
             const title = children.map(child => 
-              typeof child === 'string' ? child : child.content
+              typeof child === 'object' && 'content' in child ? child.content : child
             ).join('');
             const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
             
@@ -216,7 +224,10 @@ const SubsectionContent = () => {
     }
 
     try {
-      await savePageContent(`${sectionId}/${subsectionId}`, newContent, i18n.language);
+      // Format the content ID according to the backend's expected format
+      const contentId = `${sectionId}-${subsectionId}`;
+      
+      await savePageContent(contentId, newContent, i18n.language);
 
       // Update local state
       setContent(newContent);
@@ -258,31 +269,35 @@ const SubsectionContent = () => {
   console.log('Display content:', { content, defaultContent: subsection.content, displayContent });
 
   return (
-    <div className="flex flex-col md:flex-row relative">
-      <div className="w-full md:w-3/4 p-8">
-        <div className="prose prose-slate max-w-none dark:prose-invert">
-          {isLoading ? (
-            <div className="flex items-center justify-center min-h-[200px]">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-            </div>
-          ) : displayContent ? (
-            renderMarkdown(displayContent)
-          ) : (
-            <div>No content available</div>
+    <div className="flex flex-col md:flex-row flex-1 h-[calc(100vh-64px)] overflow-hidden">
+      <div className="w-full md:w-3/4 overflow-y-auto">
+        <div className="p-8">
+          <div className="prose prose-slate max-w-none dark:prose-invert">
+            {isLoading ? (
+              <div className="flex items-center justify-center min-h-[200px]">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+              </div>
+            ) : displayContent ? (
+              renderMarkdown(displayContent)
+            ) : (
+              <div>No content available</div>
+            )}
+          </div>
+          <EditButton 
+            content={displayContent || ''} 
+            onSave={handleSaveContent} 
+          />
+        </div>
+      </div>
+      <div className="hidden md:block w-1/4 overflow-y-auto border-l border-border">
+        <div className="sticky top-0 p-4">
+          {displayContent && (
+            <TableOfContents 
+              content={displayContent} 
+              tableOfContent={tableOfContent || parseMarkdownHeaders(displayContent)}
+            />
           )}
         </div>
-        <EditButton 
-          content={displayContent || ''} 
-          onSave={handleSaveContent} 
-        />
-      </div>
-      <div className="hidden md:block w-1/4 fixed top-20 right-0 h-[calc(100vh-5rem)] overflow-y-auto p-4">
-        {displayContent && (
-          <TableOfContents 
-            content={displayContent} 
-            tableOfContent={tableOfContent || parseMarkdownHeaders(displayContent)}
-          />
-        )}
       </div>
     </div>
   );

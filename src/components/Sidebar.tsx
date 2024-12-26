@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getDocumentationSections } from "@/data/docs";
-import { ChevronDown, ChevronRight, Menu, ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu } from "lucide-react";
 import LanguageSelector from "./LanguageSelector";
 import { useTranslation } from "react-i18next";
 import { renderMarkdown } from '@/utils/markdown';
+import { useAuthStore } from '@/store/useAuthStore';
+import { isAdminEmail } from '@/config/constants';
+import { useDocumentStructure, convertToSidebarFormat } from "@/hooks/useDocumentStructure";
+import { Skeleton } from "./ui/skeleton";
 
-const Sidebar = () => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+interface SidebarProps {
+  isMobileOpen: boolean;
+  toggleMobileSidebar: () => void;
+}
+
+const Sidebar = ({ isMobileOpen, toggleMobileSidebar }: SidebarProps) => {
   const [isDesktopOpen, setIsDesktopOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const { i18n } = useTranslation();
-  const [sections, setSections] = useState(getDocumentationSections());
+  const { user } = useAuthStore();
+  const hasAdminPermission = isAdminEmail(user?.email);
 
-  // Update sections when language changes
-  useEffect(() => {
-    setSections(getDocumentationSections());
-  }, [i18n.language]);
+  const { data: documentStructure, isLoading } = useDocumentStructure(i18n.language);
+  const sections = documentStructure ? convertToSidebarFormat(documentStructure) : [];
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) =>
@@ -24,10 +30,6 @@ const Sidebar = () => {
         ? prev.filter((id) => id !== sectionId)
         : [...prev, sectionId]
     );
-  };
-
-  const toggleMobileSidebar = () => {
-    setIsMobileOpen(!isMobileOpen);
   };
 
   const toggleDesktopSidebar = () => {
@@ -45,71 +47,103 @@ const Sidebar = () => {
       </button>
 
       <aside
-        className={`h-screen bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40
+        className={`h-[calc(100vh-64px)] bg-white border-r border-border transition-all duration-200 ease-in-out fixed lg:sticky top-16 z-40
           ${isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"} 
           lg:translate-x-0 
           ${isDesktopOpen ? "lg:w-64" : "lg:w-16"}
         `}
       >
         {/* Full sidebar content */}
-        <div className={`h-[calc(100vh-4rem)] flex flex-col ${!isDesktopOpen ? "lg:hidden" : ""}`}>
-          <div className="flex-1 overflow-y-auto">
+        <div className={`h-full flex flex-col ${!isDesktopOpen ? "lg:hidden" : ""}`}>
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-6">
               <nav className="space-y-4">
-                {sections.map((section) => (
-                  <div key={section.id}>
-                    <button
-                      onClick={() => toggleSection(section.id)}
-                      className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="flex-1 text-sm font-semibold">
-                        {renderMarkdown(section.title)}
-                      </span>
-                      {expandedSections.includes(section.id) ? (
-                        <ChevronDown size={16} />
-                      ) : (
-                        <ChevronRight size={16} />
+                {isLoading ? (
+                  // Loading skeleton
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="space-y-2">
+                      <Skeleton className="h-6 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-5/6" />
+                    </div>
+                  ))
+                ) : sections.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No sections available</div>
+                ) : (
+                  sections.map((section) => (
+                    <div key={section.id}>
+                      <button
+                        onClick={() => toggleSection(section.id)}
+                        className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        <span className="flex-1 text-sm font-semibold">
+                          {renderMarkdown(section.title)}
+                        </span>
+                        {expandedSections.includes(section.id) ? (
+                          <ChevronDown size={16} />
+                        ) : (
+                          <ChevronRight size={16} />
+                        )}
+                      </button>
+                      {expandedSections.includes(section.id) && (
+                        <div className="ml-4 mt-1 space-y-1">
+                          {section.subsections.map((subsection) => (
+                            <Link
+                              key={subsection.id}
+                              to={`/${section.id}/${subsection.id}`}
+                              className="block px-2 py-1.5 text-sm text-gray-600 hover:text-primary transition-colors"
+                            >
+                              <span className="text-sm">
+                                {renderMarkdown(subsection.title)}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
                       )}
-                    </button>
-                    {expandedSections.includes(section.id) && (
-                      <div className="ml-4 mt-1 space-y-1">
-                        {section.subsections.map((subsection) => (
-                          <Link
-                            key={subsection.id}
-                            to={`/${section.id}/${subsection.id}`}
-                            className="block px-2 py-1.5 text-sm text-gray-600 hover:text-primary transition-colors"
-                          >
-                            <span className="text-sm">
-                              {renderMarkdown(subsection.title)}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ))
+                )}
               </nav>
             </div>
           </div>
-          <div className={!isDesktopOpen ? "hidden lg:block" : ""}>
+          {/* Fixed bottom area */}
+          <div className="shrink-0 p-4 border-t border-border">
             <LanguageSelector />
+            {hasAdminPermission && (
+              <Link 
+                to="/admin" 
+                className="flex items-center gap-2 px-2 py-2 mt-2 text-sm text-gray-600 hover:text-primary transition-colors"
+              >
+                <span>Admin Portal</span>
+              </Link>
+            )}
           </div>
         </div>
 
         {/* Collapsed sidebar content */}
         <div className={`h-full flex flex-col ${isDesktopOpen ? "lg:hidden" : "hidden lg:flex"}`}>
-          <div className="p-6">
-            <div className="flex justify-center mb-8">
+          <div className="flex-1 min-h-0">
+            <div className="p-4">
               <button
                 onClick={toggleDesktopSidebar}
-                className="p-2 rounded-md hover:bg-gray-50"
+                className="p-2 rounded-md hover:bg-gray-50 mx-auto block"
               >
                 <ChevronRight size={20} className="text-gray-500" />
               </button>
             </div>
           </div>
-          <div className="mt-auto">
+          {/* Fixed bottom area for collapsed state */}
+          <div className="shrink-0 p-4 border-t border-border">
             <LanguageSelector collapsed />
+            {hasAdminPermission && (
+              <Link 
+                to="/admin" 
+                className="flex items-center justify-center px-2 py-2 mt-2 text-sm text-gray-600 hover:text-primary transition-colors"
+              >
+                <span>Admin</span>
+              </Link>
+            )}
           </div>
         </div>
       </aside>
@@ -118,7 +152,7 @@ const Sidebar = () => {
       <style data-jsx="true" data-global="true">{`
         @media (min-width: 1024px) {
           main {
-            margin-left: ${isDesktopOpen ? '6rem' : '4rem'};
+            margin-left: ${isDesktopOpen ? '16rem' : '4rem'};
             transition: margin-left 200ms ease-in-out;
           }
         }

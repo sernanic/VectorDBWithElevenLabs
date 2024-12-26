@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import Fuse from "fuse.js";
-import { getDocumentationSections } from "@/data/docs";
 import { Search, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { renderMarkdown } from '@/utils/markdown';
+import { useDocumentStructure } from "@/hooks/useDocumentStructure";
+import { Skeleton } from "./ui/skeleton";
 
 type SearchResult = {
   item: {
@@ -26,43 +27,44 @@ const SearchBar = () => {
   const { i18n } = useTranslation();
   const [fuse, setFuse] = useState<Fuse<any>>();
 
-  // Update search data when language changes
+  const { data: documentStructure, isLoading } = useDocumentStructure(i18n.language);
+
+  // Update search data when document structure changes
   useEffect(() => {
-    // Get translated documentation
-    const sections = getDocumentationSections();
-    
+    if (!documentStructure) return;
+
     // Prepare search data including subsubsections
-    const searchData = sections.flatMap((section) => [
-      { 
-        id: section.id, 
+    const searchData = Object.entries(documentStructure.sections).flatMap(([sectionId, section]) => [
+      {
+        id: sectionId,
         title: section.title,
-        sectionId: section.id 
+        sectionId
       },
-      ...section.subsections.flatMap((subsection) => [
+      ...Object.entries(section.subsections).flatMap(([subsectionId, subsection]) => [
         {
-          id: subsection.id,
+          id: subsectionId,
           title: subsection.title,
           parentTitle: section.title,
-          sectionId: section.id,
-          subsectionId: subsection.id,
+          sectionId,
+          subsectionId,
         },
-        ...(subsection.subsubsections?.map((subsubsection) => ({
-          id: subsubsection.id,
+        ...(subsection.subsubsections ? Object.entries(subsection.subsubsections).map(([subsubId, subsubsection]) => ({
+          id: subsubId,
           title: subsubsection.title,
           parentTitle: subsection.title,
-          sectionId: section.id,
-          subsectionId: subsection.id,
+          sectionId,
+          subsectionId,
           isSubsubsection: true
-        })) || []),
+        })) : []),
       ]),
     ]);
 
-    // Initialize Fuse instance with current language data
+    // Initialize Fuse instance with current data
     setFuse(new Fuse(searchData, {
       keys: ["title"],
       threshold: 0.3,
     }));
-  }, [i18n.language]); // Re-run when language changes
+  }, [documentStructure]); // Re-run when document structure changes
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -114,8 +116,9 @@ const SearchBar = () => {
           type="text"
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search documentation..."
-          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder={isLoading ? "Loading..." : "Search documentation..."}
+          disabled={isLoading}
+          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
         />
         {query && (
           <button
@@ -127,24 +130,36 @@ const SearchBar = () => {
         )}
       </div>
 
-      {isOpen && results.length > 0 && (
+      {isOpen && (
         <div className="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto">
-          {results.map(({ item }) => (
-            <button
-              key={`${item.sectionId}-${item.id}`}
-              onClick={() => handleResultClick(item)}
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 flex flex-col"
-            >
-              <div className="text-sm font-medium">
-                {renderMarkdown(item.title)}
-              </div>
-              {item.parentTitle && (
-                <div className="text-xs text-gray-500">
-                  {renderMarkdown(item.parentTitle)}
+          {isLoading ? (
+            <div className="p-4 space-y-2">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-6 w-5/6" />
+            </div>
+          ) : results.length > 0 ? (
+            results.map(({ item }) => (
+              <button
+                key={`${item.sectionId}-${item.id}`}
+                onClick={() => handleResultClick(item)}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex flex-col"
+              >
+                <div className="text-sm font-medium">
+                  {renderMarkdown(item.title)}
                 </div>
-              )}
-            </button>
-          ))}
+                {item.parentTitle && (
+                  <div className="text-xs text-gray-500">
+                    {renderMarkdown(item.parentTitle)}
+                  </div>
+                )}
+              </button>
+            ))
+          ) : (
+            <div className="p-4 text-sm text-gray-500 text-center">
+              No results found
+            </div>
+          )}
         </div>
       )}
     </div>

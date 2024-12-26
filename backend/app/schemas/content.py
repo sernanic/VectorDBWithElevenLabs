@@ -30,3 +30,56 @@ class PageContentInDB(PageContentBase):
         "populate_by_name": True,
         "json_schema_extra": {"examples": []}
     }
+
+class Subsubsection(BaseModel):
+    title: str
+    content: str
+
+class Subsection(BaseModel):
+    title: str
+    content: str
+    subsubsections: Optional[Dict[str, Subsubsection]] = {}
+
+class Section(BaseModel):
+    title: str
+    subsections: Dict[str, Subsection] = {}
+
+class DocumentStructure(BaseModel):
+    _id: str = "document_structure"
+    sections: Dict[str, Section] = {}
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "_id": "document_structure",
+                "sections": {
+                    "getting-started": {
+                        "title": "# Getting Started",
+                        "subsections": {
+                            "introduction": {
+                                "title": "## Introduction",
+                                "content": "Welcome to the documentation"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+class AddSectionRequest(BaseModel):
+    section_id: str
+    title: str
+
+class AddSubsectionRequest(BaseModel):
+    section_id: str
+    subsection_id: str
+    title: str
+    content: str
+
+class AddSubSubsectionRequest(BaseModel):
+    section_id: str
+    subsection_id: str
+    subsubsection_id: str
+    title: str
+    content: str

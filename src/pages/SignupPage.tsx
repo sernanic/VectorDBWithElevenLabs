@@ -7,7 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuthStore } from '@/store/useAuthStore';
 
-export const SignupPage = () => {
+interface SignupPageProps {
+  onLoginClick: () => void;
+}
+
+export const SignupPage = ({ onLoginClick }: SignupPageProps) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -104,12 +108,15 @@ export const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="h-full flex items-center justify-center px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            Create an account
           </h2>
+          <p className="mt-2 text-center text-sm text-muted">
+            Please enter your details to get started
+          </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
@@ -117,10 +124,10 @@ export const SignupPage = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <div className="rounded-md shadow-sm space-y-4">
+          <div className="rounded-md space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+              <label htmlFor="email" className="block text-sm font-medium text-foreground">
+                Email
               </label>
               <Input
                 id="email"
@@ -128,14 +135,14 @@ export const SignupPage = () => {
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="you@example.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
                 Password
               </label>
               <Input
@@ -144,14 +151,14 @@ export const SignupPage = () => {
                 type="password"
                 autoComplete="new-password"
                 required
-                placeholder="Min. 6 characters"
+                placeholder="Create a password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1"
               />
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
                 Confirm Password
               </label>
               <Input
@@ -169,7 +176,11 @@ export const SignupPage = () => {
           </div>
 
           <div className="flex flex-col gap-4">
-            <Button type="submit" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-primary hover:bg-primary/90 text-white"
+            >
               {isLoading ? 'Creating account...' : 'Create account'}
             </Button>
 
@@ -178,8 +189,8 @@ export const SignupPage = () => {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
+                <span className="bg-background px-2 text-muted">
+                  OR
                 </span>
               </div>
             </div>
@@ -189,21 +200,23 @@ export const SignupPage = () => {
               variant="outline"
               onClick={handleGoogleSignUp}
               disabled={isLoading}
+              className="w-full"
             >
               <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
                 <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
               </svg>
-              Sign up with Google
+              Continue with Google
             </Button>
           </div>
 
           <div className="text-sm text-center">
+            <span className="text-muted">Already have an account? </span>
             <button
               type="button"
-              onClick={() => navigate('/login')}
-              className="font-medium text-blue-600 hover:text-blue-500"
+              onClick={onLoginClick}
+              className="font-medium text-primary hover:text-primary/90"
             >
-              Already have an account? Sign in
+              Sign in
             </button>
           </div>
         </form>

@@ -1,151 +1,190 @@
-import Markdoc from '@markdoc/markdoc';
+import { environment } from '@/config/environment';
 
-const API_BASE_URL = 'http://localhost:8002/api/v1';
+interface PageContentResponse {
+  pageContent: string;
+  tableOfContent: any;
+}
 
-interface TableOfContentHeader {
-  id: string;
+interface Subsubsection {
   title: string;
-  level: number;
-  children: string[];
+  content: string;
 }
 
-interface TableOfContentData {
-  headers: TableOfContentHeader[];
-  structure: { [key: string]: TableOfContentHeader };
+interface Subsection {
+  title: string;
+  content: string;
+  subsubsections?: Record<string, Subsubsection>;
 }
 
-interface PageContent {
-  pageUrl: string;
-  pageMD: string;
-  tableOfContentMD: string;
+interface Section {
+  title: string;
+  subsections: Record<string, Subsection>;
 }
 
-// Helper function to format content with proper headers
-const formatContentWithHeaders = (content: string): string => {
-  const sections = content.split('\n\n').filter(section => section.trim());
-  return sections.map((section, index) => {
-    if (index === 0) {
-      return `# ${section}`; // First section is title (h1)
-    }
-    return `## ${section}`; // Other sections are h2
-  }).join('\n\n');
-};
+interface DocumentStructure {
+  _id: string;
+  sections: Record<string, Section>;
+}
 
-// Helper function to extract headers from markdown content
-const extractHeaders = (markdown: string): TableOfContentData => {
-  const lines = markdown.split('\n');
-  const headers: TableOfContentHeader[] = [];
-  const structure: { [key: string]: TableOfContentHeader } = {};
+interface AddSectionRequest {
+  section_id: string;
+  title: string;
+}
 
-  lines.filter(line => line.trim().startsWith('#')).forEach(line => {
-    const match = line.match(/^(#+)\s+(.+)$/);
-    if (match) {
-      const [, hashes, text] = match;
-      const id = text
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      
-      const header: TableOfContentHeader = {
-        id,
-        title: text,
-        level: hashes.length,
-        children: []
-      };
-      
-      headers.push(header);
-      structure[id] = header;
-    }
-  });
+interface AddSubsectionRequest {
+  section_id: string;
+  subsection_id: string;
+  title: string;
+  content: string;
+}
 
-  return { headers, structure };
-};
+export async function getPageContent(contentId: string, language: string): Promise<PageContentResponse> {
+  if (!contentId || !language) {
+    console.warn('Missing required parameters:', { contentId, language });
+    throw new Error('Missing required parameters');
+  }
 
-export const getPageContent = async (pageUrl: string, language: string): Promise<PageContent | null> => {
   try {
-    if (!pageUrl || !language) {
-      console.warn('Missing required parameters:', { pageUrl, language });
-      return null;
-    }
-
-    // Remove leading and trailing slashes and split
-    const parts = pageUrl.split('/').filter(Boolean);
-    if (parts.length !== 2) {
-      console.warn('Invalid pageUrl format:', pageUrl);
-      return null;
-    }
-
-    const [sectionId, subsectionId] = parts;
-    console.log('Fetching content:', { sectionId, subsectionId, language });
-
-    const response = await fetch(
-      `${API_BASE_URL}/content/${language}/${sectionId}-${subsectionId}`
-    );
-
+    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/${language}/${contentId}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    
     if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`API request failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-
+    
     const data = await response.json();
-    const tableOfContent = data.tableOfContent ? data.tableOfContent : extractHeaders(data.pageContent);
-
-    return {
-      pageUrl,
-      pageMD: data.pageContent,
-      tableOfContentMD: JSON.stringify(tableOfContent)
-    };
+    return data;
   } catch (error) {
     console.error('Error fetching page content:', error);
     throw error;
   }
-};
+}
 
-export const savePageContent = async (pageUrl: string, markdown: string, language: string): Promise<void> => {
+export async function savePageContent(contentId: string, content: string, language: string): Promise<PageContentResponse> {
+  if (!contentId || !content || !language) {
+    console.warn('Missing required parameters:', { contentId, content, language });
+    throw new Error('Missing required parameters');
+  }
+
   try {
-    if (!pageUrl || !language) {
-      throw new Error('Missing required parameters');
-    }
-
-    // Remove leading and trailing slashes and split
-    const parts = pageUrl.split('/').filter(Boolean);
-    if (parts.length !== 2) {
-      throw new Error('Invalid pageUrl format');
-    }
-
-    const [sectionId, subsectionId] = parts;
-    console.log('Saving content:', { sectionId, subsectionId, language });
-    
-    // Format content with proper headers if they don't exist
-    const formattedContent = markdown.startsWith('#') ? markdown : formatContentWithHeaders(markdown);
-    
-    // Extract headers for table of contents
-    const tableOfContent = extractHeaders(formattedContent);
-
-    const response = await fetch(
-      `${API_BASE_URL}/content/${language}/${sectionId}-${subsectionId}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pageContent: formattedContent,
-          pageURL: pageUrl,
-          tableOfContent
-        }),
-      }
-    );
+    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/${language}/${contentId}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        pageContent: content,
+      }),
+    });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    console.log('Successfully saved page content');
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error saving page content:', error);
     throw error;
   }
-};
+}
+
+export async function getDocumentStructure(language: string): Promise<DocumentStructure> {
+  if (!language) {
+    throw new Error('Language parameter is required');
+  }
+
+  try {
+    console.log('Fetching document structure from:', `${environment.apiBaseUrl}/api/v1/content/structure/${language}`);
+    
+    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/structure/${language}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Received document structure:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching document structure:', error);
+    throw error;
+  }
+}
+
+export async function addSection(language: string, sectionData: AddSectionRequest): Promise<DocumentStructure> {
+  if (!language || !sectionData.section_id || !sectionData.title) {
+    throw new Error('Missing required parameters');
+  }
+
+  try {
+    const payload = {
+      section_id: sectionData.section_id,
+      title: sectionData.title
+    };
+
+    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/structure/${language}/section`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding section:', error);
+    throw error;
+  }
+}
+
+export async function addSubsection(language: string, subsectionData: AddSubsectionRequest): Promise<DocumentStructure> {
+  if (!language || !subsectionData.section_id || !subsectionData.subsection_id || !subsectionData.title) {
+    throw new Error('Missing required parameters');
+  }
+
+  try {
+    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/structure/${language}/subsection`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(subsectionData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding subsection:', error);
+    throw error;
+  }
+}

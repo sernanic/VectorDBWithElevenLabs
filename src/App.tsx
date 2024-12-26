@@ -2,17 +2,21 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/providers/AuthProvider";
-import Index from "./pages/Index";
-import Subsection from "./pages/Subsection";
-import { LoginPage } from "./pages/LoginPage";
-import { SignupPage } from "./pages/SignupPage";
+import { Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import AdminLayout from "./components/AdminLayout";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
 import { ChatButton } from "@/components/ChatButton";
-import Header from './components/Header';
-import { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import { Outlet } from 'react-router-dom';
+import { useState } from "react";
+import SubsectionContent from "./components/SubsectionContent";
+import AdminDashboard from "./components/AdminDashboard";
+import AuthLayout from "./components/AuthLayout";
+import ContentManagement from "./features/content-management/ContentManagement";
+import SectionDetails from "./features/content-management/SectionDetails";
+import { SubsectionDetails } from "./features/content-management/SubsectionDetails";
 
 const queryClient = new QueryClient();
 
@@ -27,21 +31,45 @@ function App() {
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <div className="min-h-screen bg-background">
-              <Header toggleSidebar={toggleMobileSidebar} />
-              <div className="flex pt-20">
-                <Sidebar isMobileOpen={isMobileOpen} toggleMobileSidebar={toggleMobileSidebar} />
-                <main className="flex-1 px-4 lg:px-8 py-8">
-                  <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/signup" element={<SignupPage />} />
-                    <Route path="/" element={<Index />} />
-                    <Route path="/:sectionId/:subsectionId" element={<Subsection />} />
-                  </Routes>
-                  <ChatButton />
-                </main>
-              </div>
-            </div>
+            <Routes>
+              {/* Auth Routes */}
+              <Route path="/login" element={<AuthLayout />} />
+              <Route path="/signup" element={<AuthLayout />} />
+
+              {/* Main Documentation Routes */}
+              <Route
+                path="/*"
+                element={
+                  <div className="min-h-screen bg-background">
+                    <Header toggleSidebar={toggleMobileSidebar} />
+                    <div className="flex pt-20">
+                      <Sidebar isMobileOpen={isMobileOpen} toggleMobileSidebar={toggleMobileSidebar} />
+                      <main className="flex-1 px-4 lg:px-8 py-8">
+                        <Routes>
+                          <Route path=":sectionId/:subsectionId" element={<SubsectionContent />} />
+                          <Route path="" element={<div className="p-8">Select a section to begin</div>} />
+                        </Routes>
+                        <ChatButton />
+                      </main>
+                    </div>
+                  </div>
+                }
+              />
+
+              {/* Admin Routes */}
+              <Route path="/admin/*" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<div>Users Management</div>} />
+                <Route path="content" element={<ContentManagement />} />
+                <Route path="content/section/:sectionId" element={<SectionDetails />} />
+                <Route 
+                  path="content/section/:sectionId/subsection/:subsectionId" 
+                  element={<SubsectionDetails />} 
+                />
+                <Route path="settings" element={<div>Settings</div>} />
+              </Route>
+            </Routes>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

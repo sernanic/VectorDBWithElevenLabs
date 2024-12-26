@@ -1,44 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .core.config import get_settings
-from .core.database import mongodb
-from .routes import api_router
-import logging
-from pathlib import Path
+from .routes import content
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-settings = get_settings()
+app = FastAPI()
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
-)
-
-# Add CORS middleware
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",  # Vite default port
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "*"  # For development only - remove in production
+    ],
+    allow_credentials=False,  # Changed to False since we're allowing all origins
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
-# Include API routes
-app.include_router(api_router, prefix=settings.API_V1_STR)
+# Include routers
+app.include_router(content.router, prefix="/api/v1")
 
-@app.on_event("startup")
-async def startup_db_client():
-    await mongodb.connect_to_mongodb()
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    await mongodb.close_mongodb_connection()
-
-@app.get("/health")
-async def health_check():
-    """
-    Health check endpoint
-    """
-    return {"status": "healthy"}
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Documentation API"}

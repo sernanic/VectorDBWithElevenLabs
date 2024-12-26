@@ -3,14 +3,19 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 import logging
-import requests
-import json
-import os
 from dotenv import load_dotenv
-from pinecone import Pinecone
-
+from ..dependencies.pinecone import get_pinecone_client, get_assistant
 from ..core.database import mongodb
-from ..schemas.content import PageContentCreate, PageContentInDB
+from ..schemas.content import (
+    PageContentCreate, 
+    PageContentInDB, 
+    AddSectionRequest, 
+    AddSubsectionRequest,
+    AddSubSubsectionRequest,
+    DocumentStructure,
+    Section,
+    Subsection
+)
 
 # Load environment variables at module level
 load_dotenv()
@@ -20,29 +25,13 @@ logger = logging.getLogger(__name__)
 class ContentService:
     def __init__(self):
         self._db: Optional[AsyncIOMotorDatabase] = None
-        
-        # Get Pinecone configuration
-        self._pinecone_api_key = os.getenv("PINECONE_API_KEY")
-        self._assistant_name = os.getenv("PINECONE_ASSISTANT_NAME")
-        
-        if not self._pinecone_api_key:
-            logger.error("PINECONE_API_KEY is not set in environment variables")
-            raise ValueError("PINECONE_API_KEY environment variable is required")
-            
-        if not self._assistant_name:
-            logger.error("PINECONE_ASSISTANT_NAME is not set in environment variables")
-            raise ValueError("PINECONE_ASSISTANT_NAME environment variable is required")
-        
-        # Initialize Pinecone
         try:
-            self._pinecone = Pinecone(api_key=self._pinecone_api_key)
-            self._assistant = self._pinecone.assistant.Assistant(
-                assistant_name=self._assistant_name
-            )
+            self._pinecone = get_pinecone_client()
+            self._assistant = get_assistant(self._pinecone)
         except Exception as e:
-            logger.error(f"Failed to initialize Pinecone: {str(e)}")
+            logger.error(f"Error initializing ContentService: {str(e)}")
             raise
-        
+
     @property
     async def db(self) -> AsyncIOMotorDatabase:
         """Get database instance."""
@@ -170,6 +159,140 @@ Page Content:
             logger.error(f"Error fetching content: {str(e)}", exc_info=True)
             raise
 
+    async def get_document_structure(self, language: str = "en") -> Optional[DocumentStructure]:
+        """Get the entire document structure."""
+        try:
+            db = await self.db
+            logger.info(f"Connected to database: {db.name}")
+            
+            collection = db[language]
+            logger.info(f"Using collection: {collection.name}")
+            
+            logger.info(f"Fetching document structure from {language} collection")
+            document = await collection.find_one({"_id": "document_structure"})
+            logger.info(f"Found document structure: {document}")
+            
+            if document:
+                logger.info("Converting document to DocumentStructure")
+                structure = DocumentStructure(**document)
+                logger.info(f"Document structure sections: {structure.sections}")
+                return structure
+            
+            logger.info("No document structure found, creating empty structure")
+            empty_structure = DocumentStructure(sections={})
+            
+            # Create initial document structure
+            await collection.update_one(
+                {"_id": "document_structure"},
+                {"$set": empty_structure.dict()},
+                upsert=True
+            )
+            logger.info("Created empty document structure in database")
+            
+            return empty_structure
+        except Exception as e:
+            logger.error(f"Error fetching document structure: {str(e)}", exc_info=True)
+            raise
+
+    async def add_section(self, language: str, request: AddSectionRequest) -> DocumentStructure:
+        """Add a new section to the document structure."""
+        try:
+            db = await self.db
+            collection = db[language]
+            
+            # Get current structure
+            structure = await self.get_document_structure(language)
+            if not structure:
+                structure = DocumentStructure(sections={})
+            
+            # Add new section
+            structure.sections[request.section_id] = Section(
+                title=request.title,
+                subsections={}
+            )
+            
+            # Update in database
+            await collection.update_one(
+                {"_id": "document_structure"},
+                {"$set": structure.dict()},
+                upsert=True
+            )
+            
+            return structure
+        except Exception as e:
+            logger.error(f"Error adding section: {str(e)}", exc_info=True)
+            raise
+
+    async def add_subsection(self, language: str, request: AddSubsectionRequest) -> DocumentStructure:
+        """Add a new subsection to a section."""
+        try:
+            db = await self.db
+            collection = db[language]
+            
+            # Get current structure
+            structure = await self.get_document_structure(language)
+            
+            # Verify section exists
+            if request.section_id not in structure.sections:
+                raise ValueError(f"Section {request.section_id} does not exist")
+            
+            # Add new subsection
+            structure.sections[request.section_id].subsections[request.subsection_id] = Subsection(
+                title=request.title,
+                content=request.content,
+                subsubsections={}
+            )
+            
+            # Update in database
+            await collection.update_one(
+                {"_id": "document_structure"},
+                {"$set": structure.dict()},
+                upsert=True
+            )
+            
+            return structure
+        except Exception as e:
+            logger.error(f"Error adding subsection: {str(e)}", exc_info=True)
+            raise
+
+    async def add_subsubsection(self, language: str, request: AddSubSubsectionRequest) -> DocumentStructure:
+        """Add a new subsubsection to a subsection."""
+        try:
+            db = await self.db
+            collection = db[language]
+            
+            # Get current structure
+            structure = await self.get_document_structure(language)
+            
+            # Verify section and subsection exist
+            if request.section_id not in structure.sections:
+                raise ValueError(f"Section {request.section_id} does not exist")
+            if request.subsection_id not in structure.sections[request.section_id].subsections:
+                raise ValueError(f"Subsection {request.subsection_id} does not exist")
+            
+            # Initialize subsubsections if None
+            if structure.sections[request.section_id].subsections[request.subsection_id].subsubsections is None:
+                structure.sections[request.section_id].subsections[request.subsection_id].subsubsections = {}
+            
+            # Add new subsubsection
+            structure.sections[request.section_id].subsections[request.subsection_id].subsubsections[request.subsubsection_id] = {
+                "title": request.title,
+                "content": request.content
+            }
+            
+            # Update in database
+            await collection.update_one(
+                {"_id": "document_structure"},
+                {"$set": structure.dict()},
+                upsert=True
+            )
+            
+            return structure
+        except Exception as e:
+            logger.error(f"Error adding subsubsection: {str(e)}", exc_info=True)
+            raise
+
+# Create a singleton instance
 try:
     content_service = ContentService()
 except Exception as e:
