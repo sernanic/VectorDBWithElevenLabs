@@ -1,10 +1,10 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import logging
 from dotenv import load_dotenv
-from ..dependencies.pinecone import get_pinecone_client, get_assistant
+from ..dependencies.pinecone import get_pinecone_client, get_assistant, Message
 from ..core.database import mongodb
 from ..schemas.content import (
     PageContentCreate, 
@@ -14,7 +14,9 @@ from ..schemas.content import (
     AddSubSubsectionRequest,
     DocumentStructure,
     Section,
-    Subsection
+    Subsection,
+    TableOfContentData,
+    TableOfContentHeader
 )
 
 # Load environment variables at module level
@@ -46,90 +48,35 @@ class ContentService:
         content_id: str, 
         content: PageContentCreate
     ) -> PageContentInDB:
-        """
-        Save content to MongoDB and Pinecone.
-        
-        Args:
-            language: Language of the content
-            content_id: Unique identifier for the content
-            content: Content to be saved
-            
-        Returns:
-            PageContentInDB: Saved content object
-            
-        Raises:
-            Exception: If there's an error saving to MongoDB or Pinecone
-        """
+        """Save content to MongoDB and Pinecone."""
         try:
             logger.info(f"Saving content for {language}/{content_id}")
             
-            # Save to MongoDB
+            # Process content for table of contents
+            toc = self.process_content_for_table_of_contents(content.pageContent)
+            
+            # Create or update the content
+            content_data = {
+                "_id": content_id,
+                "pageContent": content.pageContent,
+                "pageURL": content.pageURL,
+                "tableOfContent": toc.dict() if toc else {},
+                "headers": self.extract_headers(content.pageContent),
+                "structure": toc.dict().get("structure", {}) if toc else {}
+            }
+            
+            # Save to database
             db = await self.db
-            mongo_collection = db[language]
-            
-            document = content.dict()
-            document["_id"] = content_id
-            
-            await mongo_collection.update_one(
+            collection = db[language]
+            await collection.update_one(
                 {"_id": content_id},
-                {"$set": document},
+                {"$set": content_data},
                 upsert=True
             )
             
-            # Save to Pinecone
-            try:
-                # Create temporary directory if it doesn't exist
-                temp_dir = Path("temp_uploads")
-                temp_dir.mkdir(exist_ok=True)
-                
-                # Create temporary file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                temp_file_path = temp_dir / f"{timestamp}_{content_id}.txt"
-                
-                try:
-                    # Format content for text file
-                    content_text = f"""Title: {content_id}
-
-Page Content:
-{content.pageContent}
-
-"""
-                    
-                    # Save content to temporary file
-                    with open(temp_file_path, 'w', encoding='utf-8') as f:
-                        f.write(content_text)
-                    
-                    # Upload to Pinecone with metadata
-                    metadata = {
-                        "language": language,
-                        "content_id": content_id,
-                        "document_type": "documentation"
-                    }
-                    
-                    response = self._assistant.upload_file(
-                        file_path=str(temp_file_path),
-                        metadata=metadata
-                    )
-                    
-                    logger.info(f"Successfully uploaded to Pinecone: {response}")
-                    
-                finally:
-                    # Clean up temporary file
-                    if temp_file_path.exists():
-                        temp_file_path.unlink()
-                    try:
-                        temp_dir.rmdir()
-                    except OSError:
-                        pass  # Directory not empty or already deleted
-                        
-            except Exception as pinecone_error:
-                logger.error(f"Error saving to Pinecone: {str(pinecone_error)}", exc_info=True)
-                raise
-                
-            return PageContentInDB(**document)
-                
+            return PageContentInDB(**content_data)
         except Exception as e:
-            logger.error(f"Error saving content: {str(e)}", exc_info=True)
+            logger.error(f"Error saving content: {str(e)}")
             raise
 
     async def get_content(self, language: str, content_id: str) -> Optional[PageContentInDB]:
@@ -152,7 +99,15 @@ Page Content:
             
             document = await mongo_collection.find_one({"_id": content_id})
             if document:
-                return PageContentInDB(**document)
+                # Ensure document has all required fields
+                document_data = {
+                    "pageContent": document.get("pageContent", ""),
+                    "pageURL": document.get("pageURL", content_id),
+                    "tableOfContent": document.get("tableOfContent", {}),
+                    "headers": document.get("headers", []),
+                    "structure": document.get("structure", {})
+                }
+                return PageContentInDB(**document_data)
             return None
             
         except Exception as e:
@@ -163,35 +118,25 @@ Page Content:
         """Get the entire document structure."""
         try:
             db = await self.db
-            logger.info(f"Connected to database: {db.name}")
-            
             collection = db[language]
-            logger.info(f"Using collection: {collection.name}")
             
-            logger.info(f"Fetching document structure from {language} collection")
+            # Get the document structure
             document = await collection.find_one({"_id": "document_structure"})
-            logger.info(f"Found document structure: {document}")
             
             if document:
-                logger.info("Converting document to DocumentStructure")
-                structure = DocumentStructure(**document)
-                logger.info(f"Document structure sections: {structure.sections}")
-                return structure
+                return DocumentStructure(**document)
             
-            logger.info("No document structure found, creating empty structure")
+            # Create empty structure if none exists
             empty_structure = DocumentStructure(sections={})
-            
-            # Create initial document structure
             await collection.update_one(
                 {"_id": "document_structure"},
                 {"$set": empty_structure.dict()},
                 upsert=True
             )
-            logger.info("Created empty document structure in database")
             
             return empty_structure
         except Exception as e:
-            logger.error(f"Error fetching document structure: {str(e)}", exc_info=True)
+            logger.error(f"Error fetching document structure: {str(e)}")
             raise
 
     async def add_section(self, language: str, request: AddSectionRequest) -> DocumentStructure:
@@ -205,13 +150,13 @@ Page Content:
             if not structure:
                 structure = DocumentStructure(sections={})
             
-            # Add new section
+            # Add new section with title and empty subsections
             structure.sections[request.section_id] = Section(
                 title=request.title,
                 subsections={}
             )
             
-            # Update in database
+            # Update document structure in database
             await collection.update_one(
                 {"_id": "document_structure"},
                 {"$set": structure.dict()},
@@ -222,6 +167,67 @@ Page Content:
         except Exception as e:
             logger.error(f"Error adding section: {str(e)}", exc_info=True)
             raise
+
+    def process_content_for_table_of_contents(self, content: str) -> TableOfContentData:
+        """Process content to generate table of contents with nested structure."""
+        headers = self.extract_headers(content)
+        structure = {}
+        headers_by_id = {}
+        
+        # First pass: Create all headers and store them by ID
+        for header in headers:
+            header_id = f"header_{len(headers_by_id)}"
+            header_obj = TableOfContentHeader(
+                id=header_id,
+                title=header['title'],
+                level=header['level'],
+                children=[]
+            )
+            headers_by_id[header_id] = header_obj
+            
+        # Second pass: Build hierarchy
+        stack = []
+        for header_id, header in headers_by_id.items():
+            while stack and headers_by_id[stack[-1]].level >= header.level:
+                stack.pop()
+                
+            if stack:
+                parent = headers_by_id[stack[-1]]
+                parent.children.append(header_id)
+            else:
+                structure[header_id] = header
+                
+            stack.append(header_id)
+            
+        return TableOfContentData(
+            headers=list(headers_by_id.values()),
+            structure=structure
+        )
+
+    def extract_headers(self, content: str) -> List[Dict[str, Any]]:
+        """Extract headers from the content using regex."""
+        import re
+        
+        # Match markdown headers (e.g., # Header, ## Subheader)
+        header_pattern = r'^(#{1,6})\s+(.+)$'
+        headers = []
+        
+        for line in content.split('\n'):
+            match = re.match(header_pattern, line.strip())
+            if match:
+                level = len(match.group(1))  # Number of # symbols
+                title = match.group(2).strip()
+                headers.append({
+                    'title': title,
+                    'level': level
+                })
+                
+        return headers
+
+    def create_structure_from_content(self, content: str) -> Dict[str, Any]:
+        """Create a hierarchical structure from the content."""
+        # This is now handled by process_content_for_table_of_contents
+        return self.process_content_for_table_of_contents(content).structure
 
     async def add_subsection(self, language: str, request: AddSubsectionRequest) -> DocumentStructure:
         """Add a new subsection to a section."""
@@ -236,17 +242,38 @@ Page Content:
             if request.section_id not in structure.sections:
                 raise ValueError(f"Section {request.section_id} does not exist")
             
-            # Add new subsection
+            # Add new subsection with only title to structure
             structure.sections[request.section_id].subsections[request.subsection_id] = Subsection(
                 title=request.title,
-                content=request.content,
+                content="",  # Empty content in structure
                 subsubsections={}
             )
             
-            # Update in database
+            # Update structure in database
             await collection.update_one(
                 {"_id": "document_structure"},
                 {"$set": structure.dict()},
+                upsert=True
+            )
+            
+            # Process table of contents
+            toc = self.process_content_for_table_of_contents(request.content) if request.content else None
+            toc_dict = toc.dict() if toc else None
+            
+            # Create separate content document for subsection
+            content_document = {
+                "_id": f"{request.section_id}/{request.subsection_id}",  # Changed to use path-like ID
+                "pageContent": request.content or "",
+                "pageURL": f"{request.section_id}/{request.subsection_id}",
+                "tableOfContent": toc_dict,
+                "headers": self.extract_headers(request.content) if request.content else [],
+                "structure": toc_dict["structure"] if toc_dict else {}
+            }
+            
+            # Save the content document
+            await collection.update_one(
+                {"_id": content_document["_id"]},  # Use the _id from content_document
+                {"$set": content_document},
                 upsert=True
             )
             

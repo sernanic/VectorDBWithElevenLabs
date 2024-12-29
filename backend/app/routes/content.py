@@ -103,7 +103,7 @@ async def add_subsection(language: str, request: AddSubsectionRequest):
         )
 
 # Content routes
-@router.get("/{language}/{content_id}", response_model=PageContentResponse)
+@router.get("/{language}/{content_id:path}", response_model=PageContentResponse)
 async def get_page_content(language: str, content_id: str):
     """
     Retrieve page content for a specific language and content ID
@@ -116,13 +116,28 @@ async def get_page_content(language: str, content_id: str):
             logger.warning(f"Content not found: {language}/{content_id}")
             return PageContentResponse(
                 pageContent="",
-                tableOfContent=None
+                tableOfContent={},
+                _id=content_id,
+                pageURL=content_id,
+                headers=[],
+                structure={}
             )
         
-        logger.info(f"Successfully retrieved page content: {language}/{content_id}")
+        # Convert TableOfContentData to dict if needed
+        table_of_content = (
+            content.tableOfContent.dict() 
+            if hasattr(content.tableOfContent, 'dict') 
+            else content.tableOfContent or {}
+        )
+        
+        logger.info(f"Successfully retrieved content: {content}")
         return PageContentResponse(
             pageContent=content.pageContent,
-            tableOfContent=content.tableOfContent
+            tableOfContent=table_of_content,  # Use the converted dict
+            _id=content_id,
+            pageURL=content.pageURL,
+            headers=content.headers if hasattr(content, 'headers') else [],
+            structure=content.structure if hasattr(content, 'structure') else {}
         )
     except Exception as e:
         logger.error(f"Error in get_page_content: {str(e)}", exc_info=True)
@@ -131,27 +146,29 @@ async def get_page_content(language: str, content_id: str):
             detail=str(e)
         )
 
-@router.post("/{language}/{section_id}-{subsection_id}", response_model=PageContentResponse)
+@router.post("/{language}/{content_id:path}", response_model=PageContentResponse)
 async def save_page_content(
     language: str,
-    section_id: str,
-    subsection_id: str,
+    content_id: str,
     content: PageContentCreate
 ):
     """
-    Save page content for a specific language and section
+    Save page content for a specific language and content ID
     """
     try:
-        logger.info(f"POST request to save page content: {language}/{section_id}-{subsection_id}")
+        logger.info(f"POST request to save page content: {language}/{content_id}")
         logger.debug(f"Content data: {content}")
-        content_id = f"{section_id}-{subsection_id}"
         
         saved_content = await content_service.save_content(language, content_id, content)
         
-        logger.info(f"Successfully saved page content: {language}/{section_id}-{subsection_id}")
+        logger.info(f"Successfully saved page content: {language}/{content_id}")
         return PageContentResponse(
             pageContent=saved_content.pageContent,
-            tableOfContent=saved_content.tableOfContent
+            tableOfContent=saved_content.tableOfContent or {},
+            _id=content_id,
+            pageURL=saved_content.pageURL,
+            headers=saved_content.headers if hasattr(saved_content, 'headers') else [],
+            structure=saved_content.structure if hasattr(saved_content, 'structure') else {}
         )
     except Exception as e:
         logger.error(f"Error in save_page_content: {str(e)}", exc_info=True)

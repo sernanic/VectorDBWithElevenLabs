@@ -57,3 +57,13 @@ export async function savePageContent(
     throw new Error(`API request failed: ${response.statusText}`);
   }
 }
+
+export async function getDocumentStructure(language: string): Promise<DocumentStructure> {
+  const response = await fetch(`${API_BASE_URL}/content/structure/${language}`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch document structure: ${response.statusText}`);
+  }
+  
+  return await response.json();
+}

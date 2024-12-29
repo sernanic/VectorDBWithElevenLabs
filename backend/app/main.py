@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import content
+from .routes import content, api_router, chatbot
 
 app = FastAPI()
 
@@ -10,6 +10,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",  # Vite default port
+        "http://localhost:8080",  # Your Vite port
+        "http://127.0.0.1:8080",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
         "*"  # For development only - remove in production
@@ -23,6 +25,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(content.router, prefix="/api/v1")
+app.include_router(chatbot.router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 async def root():

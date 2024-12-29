@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
 
     class Config:
-        env_file = ".env"
+        env_file = ("backend/.env", ".env")
         case_sensitive = True
 
 @lru_cache()

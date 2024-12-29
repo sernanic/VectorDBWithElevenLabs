@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { motion } from 'framer-motion';
+import { API_CONFIG } from '@/config/api';
 
 interface Message {
   id: string;
@@ -15,7 +16,7 @@ interface Message {
   timestamp: Date;
 }
 
-const API_BASE_URL = 'http://localhost:8002/api/v1/chatbot';
+const API_BASE_URL = `${API_CONFIG.API_URL}/chatbot`;
 
 export const ChatButton = () => {
   const [messages, setMessages] = useState<Message[]>([]);

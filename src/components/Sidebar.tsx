@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { renderMarkdown } from '@/utils/markdown';
 import { useAuthStore } from '@/store/useAuthStore';
 import { isAdminEmail } from '@/config/constants';
-import { useDocumentStructure, convertToSidebarFormat } from "@/hooks/useDocumentStructure";
+import { useDocumentStructure } from '@/hooks/useDocumentStructure';
 import { Skeleton } from "./ui/skeleton";
 
 interface SidebarProps {
@@ -21,8 +21,10 @@ const Sidebar = ({ isMobileOpen, toggleMobileSidebar }: SidebarProps) => {
   const { user } = useAuthStore();
   const hasAdminPermission = isAdminEmail(user?.email);
 
-  const { data: documentStructure, isLoading } = useDocumentStructure(i18n.language);
-  const sections = documentStructure ? convertToSidebarFormat(documentStructure) : [];
+  const { sidebarItems, isLoading, error } = useDocumentStructure();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading structure</div>;
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) =>
@@ -59,51 +61,38 @@ const Sidebar = ({ isMobileOpen, toggleMobileSidebar }: SidebarProps) => {
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-6">
               <nav className="space-y-4">
-                {isLoading ? (
-                  // Loading skeleton
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="space-y-2">
-                      <Skeleton className="h-6 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-5/6" />
-                    </div>
-                  ))
-                ) : sections.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No sections available</div>
-                ) : (
-                  sections.map((section) => (
-                    <div key={section.id}>
-                      <button
-                        onClick={() => toggleSection(section.id)}
-                        className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
-                      >
-                        <span className="flex-1 text-sm font-semibold">
-                          {renderMarkdown(section.title)}
-                        </span>
-                        {expandedSections.includes(section.id) ? (
-                          <ChevronDown size={16} />
-                        ) : (
-                          <ChevronRight size={16} />
-                        )}
-                      </button>
-                      {expandedSections.includes(section.id) && (
-                        <div className="ml-4 mt-1 space-y-1">
-                          {section.subsections.map((subsection) => (
-                            <Link
-                              key={subsection.id}
-                              to={`/${section.id}/${subsection.id}`}
-                              className="block px-2 py-1.5 text-sm text-gray-600 hover:text-primary transition-colors"
-                            >
-                              <span className="text-sm">
-                                {renderMarkdown(subsection.title)}
-                              </span>
-                            </Link>
-                          ))}
-                        </div>
+                {sidebarItems.map((section) => (
+                  <div key={section.id}>
+                    <button
+                      onClick={() => toggleSection(section.id)}
+                      className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="flex-1 text-sm font-semibold">
+                        {renderMarkdown(section.title)}
+                      </span>
+                      {expandedSections.includes(section.id) ? (
+                        <ChevronDown size={16} />
+                      ) : (
+                        <ChevronRight size={16} />
                       )}
-                    </div>
-                  ))
-                )}
+                    </button>
+                    {expandedSections.includes(section.id) && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {section.items?.map((subsection) => (
+                          <Link
+                            key={subsection.id}
+                            to={`/${section.id}/${subsection.id}`}
+                            className="block px-2 py-1.5 text-sm text-gray-600 hover:text-primary transition-colors"
+                          >
+                            <span className="text-sm">
+                              {renderMarkdown(subsection.title)}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </nav>
             </div>
           </div>

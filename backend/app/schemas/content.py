@@ -5,26 +5,36 @@ class TableOfContentHeader(BaseModel):
     id: str
     title: str
     level: int
-    children: List[str]
+    children: List[str] = []
 
 class TableOfContentData(BaseModel):
-    headers: List[TableOfContentHeader]
-    structure: Dict[str, TableOfContentHeader]
+    headers: List[TableOfContentHeader] = []
+    structure: Dict = {}
 
 class PageContentBase(BaseModel):
     pageContent: str = Field(..., description="The main content of the page")
     pageURL: str = Field(..., description="The URL of the page")
     tableOfContent: Optional[TableOfContentData] = Field(None, description="Table of contents data")
 
-class PageContentCreate(PageContentBase):
-    pass
+class PageContentCreate(BaseModel):
+    pageContent: str
+    pageURL: str
+    tableOfContent: Dict = {}
 
 class PageContentResponse(BaseModel):
     pageContent: str
-    tableOfContent: Optional[TableOfContentData] = None
+    tableOfContent: Dict = {}
+    _id: str
+    pageURL: str
+    headers: List = []
+    structure: Dict = {}
 
-class PageContentInDB(PageContentBase):
-    id: str = Field(..., alias="_id")
+class PageContentInDB(BaseModel):
+    pageContent: str
+    pageURL: str
+    tableOfContent: Dict = {}
+    headers: List = []
+    structure: Dict = {}
 
     model_config = {
         "populate_by_name": True,
@@ -70,6 +80,9 @@ class DocumentStructure(BaseModel):
 class AddSectionRequest(BaseModel):
     section_id: str
     title: str
+    page_content: str = ""
+    page_url: str = ""
+    content_id: str = ""
 
 class AddSubsectionRequest(BaseModel):
     section_id: str

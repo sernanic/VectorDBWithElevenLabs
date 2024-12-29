@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
@@ -17,6 +17,7 @@ import AuthLayout from "./components/AuthLayout";
 import ContentManagement from "./features/content-management/ContentManagement";
 import SectionDetails from "./features/content-management/SectionDetails";
 import { SubsectionDetails } from "./features/content-management/SubsectionDetails";
+import { VideoManagement } from "./pages/admin/VideoManagement";
 
 const queryClient = new QueryClient();
 
@@ -46,8 +47,9 @@ function App() {
                       <Sidebar isMobileOpen={isMobileOpen} toggleMobileSidebar={toggleMobileSidebar} />
                       <main className="flex-1 px-4 lg:px-8 py-8">
                         <Routes>
+                          <Route path="/" element={<div className="p-8">Select a section to begin</div>} />
                           <Route path=":sectionId/:subsectionId" element={<SubsectionContent />} />
-                          <Route path="" element={<div className="p-8">Select a section to begin</div>} />
+                          <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                         <ChatButton />
                       </main>
@@ -67,6 +69,7 @@ function App() {
                   path="content/section/:sectionId/subsection/:subsectionId" 
                   element={<SubsectionDetails />} 
                 />
+                <Route path="videos" element={<VideoManagement />} />
                 <Route path="settings" element={<div>Settings</div>} />
               </Route>
             </Routes>

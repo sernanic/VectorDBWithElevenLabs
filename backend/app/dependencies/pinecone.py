@@ -1,5 +1,6 @@
 from fastapi import Depends
-from pinecone import Pinecone
+from pinecone import Pinecone, ServerlessSpec
+from dataclasses import dataclass
 import os
 from dotenv import load_dotenv
 import logging
@@ -7,6 +8,11 @@ import logging
 # Load environment variables
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+@dataclass
+class Message:
+    content: str
+    role: str = "user"
 
 def get_pinecone_client() -> Pinecone:
     """
@@ -25,7 +31,7 @@ def get_pinecone_client() -> Pinecone:
 
 def get_assistant(pc: Pinecone = Depends(get_pinecone_client)):
     """
-    Creates and returns a Pinecone Assistant instance.
+    Creates and returns a Pinecone index for the assistant.
     """
     try:
         assistant_name = os.getenv("PINECONE_ASSISTANT_NAME")
@@ -33,9 +39,23 @@ def get_assistant(pc: Pinecone = Depends(get_pinecone_client)):
             logger.error("PINECONE_ASSISTANT_NAME is not set in environment variables")
             raise ValueError("PINECONE_ASSISTANT_NAME environment variable is required")
         
-        return pc.assistant.Assistant(assistant_name=assistant_name)
+        # Try to get existing index or create a new one
+        index_name = f"assistant-{assistant_name}"
+        if index_name not in pc.list_indexes().names():
+            pc.create_index(
+                name=index_name,
+                dimension=1536,  # OpenAI embeddings dimension
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud="aws",
+                    region="us-east-1"
+                ) 
+
+            )
+        
+        return pc.Index(index_name)
     except Exception as e:
-        logger.error(f"Error initializing Pinecone assistant: {str(e)}")
+        logger.error(f"Error initializing Pinecone index: {str(e)}")
         raise
 
-__all__ = ['get_pinecone_client', 'get_assistant'] 
+__all__ = ['get_pinecone_client', 'get_assistant', 'Message'] 

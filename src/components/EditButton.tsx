@@ -25,25 +25,26 @@ export const EditButton = ({ content, onSave }: EditButtonProps) => {
   const { user } = useAuthStore();
   const { toast } = useToast();
 
-  // Check if user has edit permissions
-  const hasEditPermission = isAdminEmail(user?.email);
+  // Move this debug logging outside the early return
+  console.log('EditButton Debug:', { 
+    userExists: !!user, 
+    userEmail: user?.email,
+    hasEditPermission: user?.email ? isAdminEmail(user.email) : false,
+    adminEmails: ADMIN_EMAILS,
+    content: !!content,
+    contentLength: content?.length
+  });
 
-  // Debug log
-  useEffect(() => {
-    console.log('Auth Debug:', {
-      user: user?.email,
-      hasEditPermission,
-      isEmailInList: user?.email ? isAdminEmail(user.email) : false,
-      adminEmails: ADMIN_EMAILS
-    });
-  }, [user]);
+  // Check if user has edit permissions
+  const hasEditPermission = user?.email ? isAdminEmail(user.email) : false;
 
   if (!user || !hasEditPermission) {
-    console.log('Edit button not shown:', { 
-      userExists: !!user, 
-      userEmail: user?.email,
-      hasEditPermission 
-    });
+    console.log('Edit button not shown - auth check failed');
+    return null;
+  }
+
+  if (!content) {
+    console.log('Edit button not shown - no content');
     return null;
   }
 

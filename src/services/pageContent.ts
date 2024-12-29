@@ -38,60 +38,42 @@ interface AddSubsectionRequest {
   content: string;
 }
 
-export async function getPageContent(contentId: string, language: string): Promise<PageContentResponse> {
-  if (!contentId || !language) {
-    console.warn('Missing required parameters:', { contentId, language });
-    throw new Error('Missing required parameters');
-  }
-
+export async function getPageContent(contentId: string, language: string) {
   try {
-    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/${language}/${contentId}`, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
+    const response = await fetch(`/api/content/${language}/${contentId}`);
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error Response:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error('Failed to fetch content');
     }
-    
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
     console.error('Error fetching page content:', error);
     throw error;
   }
 }
 
-export async function savePageContent(contentId: string, content: string, language: string): Promise<PageContentResponse> {
-  if (!contentId || !content || !language) {
-    console.warn('Missing required parameters:', { contentId, content, language });
-    throw new Error('Missing required parameters');
-  }
-
+export async function savePageContent(contentId: string, language: string, content: string) {
   try {
-    const response = await fetch(`${environment.apiBaseUrl}/api/v1/content/${language}/${contentId}`, {
+    const payload = {
+      pageContent: content,
+      pageURL: contentId,
+      tableOfContent: {}
+    };
+
+    const response = await fetch(`/api/content/${language}/${contentId}`, {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        pageContent: content,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error Response:', errorText);
+      const errorData = await response.json();
+      console.error('API Error Response:', errorData);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
     console.error('Error saving page content:', error);
     throw error;

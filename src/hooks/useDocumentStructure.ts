@@ -1,44 +1,38 @@
-import { useQuery } from "@tanstack/react-query";
-import { getDocumentStructure } from "@/services/pageContent";
+import { useQuery } from '@tanstack/react-query';
+import { getDocumentStructure } from '@/lib/api';
+import { DocumentStructure } from '@/lib/api';
 
-interface Subsubsection {
+interface SidebarItem {
+  id: string;
   title: string;
-  content: string;
+  items?: SidebarItem[];
 }
 
-interface Subsection {
-  title: string;
-  content: string;
-  subsubsections?: Record<string, Subsubsection>;
-}
-
-interface Section {
-  title: string;
-  subsections: Record<string, Subsection>;
-}
-
-interface DocumentStructure {
-  sections: Record<string, Section>;
+function convertToSidebarFormat(structure: DocumentStructure): SidebarItem[] {
+  return Object.entries(structure.sections).map(([sectionId, section]) => ({
+    id: sectionId,
+    title: section.title,
+    items: Object.entries(section.subsections).map(([subsectionId, subsection]) => ({
+      id: subsectionId,
+      title: subsection.title,
+      items: subsection.subsubsections 
+        ? Object.entries(subsection.subsubsections).map(([subsubId, subsub]) => ({
+            id: subsubId,
+            title: subsub.title
+          }))
+        : undefined
+    }))
+  }));
 }
 
 export function useDocumentStructure(language: string = 'en') {
-  return useQuery<DocumentStructure>({
+  const query = useQuery({
     queryKey: ['documentStructure', language],
     queryFn: () => getDocumentStructure(language),
-    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
-    gcTime: 1000 * 60 * 30, // Keep data in cache for 30 minutes
   });
-}
 
-// Helper function to convert document structure to sidebar format
-export function convertToSidebarFormat(documentStructure: DocumentStructure) {
-  return Object.entries(documentStructure.sections).map(([sectionId, section]) => ({
-    id: sectionId,
-    title: section.title,
-    subsections: Object.entries(section.subsections).map(([subsectionId, subsection]) => ({
-      id: subsectionId,
-      title: subsection.title,
-      content: subsection.content
-    }))
-  }));
+  return {
+    ...query,
+    sidebarItems: query.data ? convertToSidebarFormat(query.data) : []
+  };
 } 
