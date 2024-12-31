@@ -14,7 +14,7 @@ load_dotenv()
 # Now you can access the environment variables
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME")
-XI_API_KEY = os.getenv("XI_API_KEY")
+XI_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 # Configure logging
 logger = logging.getLogger(__name__)

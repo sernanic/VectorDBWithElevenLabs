@@ -1,51 +1,67 @@
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 from youtube_transcript_api import YouTubeTranscriptApi
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from transformers import BridgeTowerModel, BridgeTowerProcessor
 import lancedb
 import re
 import os
-import cv2
 from ..core.config import get_settings
-from PIL import Image
-from ..utils.video_utils import download_video, get_transcript_vtt
-import torch
+import openai
 import numpy as np
+from sentence_transformers import SentenceTransformer
+import pyarrow as pa
+from ..core.database import mongodb
+import logging
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from datetime import datetime
+import aiohttp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+openai.api_key = settings.OPENAI_API_KEY
 
 class VideoService:
     def __init__(self):
         try:
-            # Create necessary directories if they don't exist
+            # Create necessary directories
             self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.data_dir = os.path.join(self.base_dir, "data")
-            self.frames_dir = os.path.join(self.data_dir, "frames")
             os.makedirs(self.data_dir, exist_ok=True)
-            os.makedirs(self.frames_dir, exist_ok=True)
             
-            logger.info(f"Initialized directories: {self.data_dir}, {self.frames_dir}")
+            logger.info(f"Initialized directory: {self.data_dir}")
             
+            # Initialize LanceDB for vector storage
             self.db = lancedb.connect(self.data_dir)
             
+            # Initialize sentence transformer for embeddings
+            self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+            
+            # Text splitter for segmenting transcripts
             self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=100
+                chunk_size=300,  # Smaller chunks for better context
+                chunk_overlap=50,
+                separators=["\n", ".", "!", "?", ",", " ", ""]
             )
             
-            self.frames_per_second = 0.2  # Extract 1 frame every 5 seconds
-            self.frame_height = 350
+            # Initialize MongoDB connection
+            self._db: Optional[AsyncIOMotorDatabase] = None
             
             logger.info("VideoService initialized successfully")
             
         except Exception as e:
             logger.error(f"Error initializing VideoService: {str(e)}")
             raise
+
+    @property
+    async def mongodb(self) -> AsyncIOMotorDatabase:
+        """Get MongoDB database instance."""
+        if self._db is None:
+            await mongodb.connect_to_mongodb()
+            self._db = mongodb.db
+        return self._db
 
     def extract_video_id(self, url: str) -> str:
         """Extract YouTube video ID from URL."""
@@ -60,90 +76,145 @@ class VideoService:
                 return match.group(1)
         raise ValueError("Invalid YouTube URL")
 
-    def maintain_aspect_ratio_resize(self, image, height=350):
-        """Resize image maintaining aspect ratio."""
-        aspect_ratio = image.shape[1] / image.shape[0]
-        width = int(height * aspect_ratio)
-        return cv2.resize(image, (width, height))
+    def _create_five_minute_chunks(self, captions: List[Dict]) -> List[Dict]:
+        """Create 5-minute chunks from captions for broader context."""
+        chunks = []
+        current_chunk = {
+            'text': '',
+            'start': 0,
+            'duration': 0
+        }
+        
+        for caption in captions:
+            if current_chunk['duration'] >= 300:  # 5 minutes = 300 seconds
+                chunks.append(current_chunk)
+                current_chunk = {
+                    'text': caption['text'] + ' ',
+                    'start': caption['start'],
+                    'duration': caption['duration']
+                }
+            else:
+                current_chunk['text'] += caption['text'] + ' '
+                if not current_chunk['text']:
+                    current_chunk['start'] = caption['start']
+                current_chunk['duration'] += caption['duration']
+        
+        if current_chunk['text']:
+            chunks.append(current_chunk)
+        
+        return chunks
 
-    def extract_frames(self, video_id: str) -> list:
-        """Extract frames from video at specified FPS rate."""
+    async def _store_chunks_in_mongodb(self, video_id: str, chunks: List[Dict]):
+        """Store 5-minute chunks in MongoDB."""
         try:
-            # Download video using the utility function
-            video_dir = os.path.join(self.data_dir, video_id)
-            os.makedirs(video_dir, exist_ok=True)
+            db = await self.mongodb
+            collection = db['video_chunks']
             
-            video_url = f'https://www.youtube.com/watch?v={video_id}'
-            video_path = download_video(video_url, video_dir)
-            transcript_path = get_transcript_vtt(video_url, video_dir)
-
-            if not os.path.exists(video_path):
-                raise Exception("Video file not found after download")
-
-            # Extract frames
-            frames_info = []
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                raise Exception("Failed to open video file")
-                
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            hop = round(fps / self.frames_per_second)  # Frames to skip
-            frame_count = 0
-            idx = 0
+            # Create documents for bulk insert
+            documents = []
+            for i, chunk in enumerate(chunks):
+                documents.append({
+                    'video_id': video_id,
+                    'chunk_index': i,
+                    'text': chunk['text'],
+                    'start_time': chunk['start'],
+                    'duration': chunk['duration']
+                })
             
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                    
-                if frame_count % hop == 0:
-                    # Resize frame maintaining aspect ratio
-                    resized_frame = self.maintain_aspect_ratio_resize(
-                        frame, 
-                        height=self.frame_height
-                    )
-                    
-                    frame_path = os.path.join(
-                        self.frames_dir, 
-                        f"{video_id}_frame_{idx}.jpg"
-                    )
-                    cv2.imwrite(frame_path, resized_frame)
-                    
-                    timestamp_ms = (frame_count / fps) * 1000
-                    frames_info.append({
-                        "frame_path": frame_path,
-                        "timestamp_ms": timestamp_ms,
-                        "frame_id": idx
-                    })
-                    idx += 1
-                
-                frame_count += 1
+            # Delete existing chunks for this video
+            await collection.delete_many({'video_id': video_id})
             
-            cap.release()
-            
-            # Clean up downloaded video
-            try:
-                os.remove(video_path)
-            except Exception as cleanup_error:
-                print(f"Warning: Failed to clean up video file: {str(cleanup_error)}")
-                
-            if not frames_info:
-                raise Exception("No frames were extracted from the video")
-                
-            return frames_info
+            # Insert new chunks
+            if documents:
+                await collection.insert_many(documents)
+                logger.info(f"Stored {len(documents)} chunks for video {video_id}")
             
         except Exception as e:
-            print(f"Error extracting frames: {str(e)}")
-            # Clean up any partially downloaded files
-            try:
-                if 'video_path' in locals() and os.path.exists(video_path):
-                    os.remove(video_path)
-            except:
-                pass
-            return []
+            logger.error(f"Error storing chunks in MongoDB: {str(e)}")
+            raise
 
-    async def process_video(self, video_id: str) -> bool:
-        """Process a YouTube video captions."""
+    async def _get_context_from_mongodb(self, video_id: str, timestamp: float) -> Optional[str]:
+        """Retrieve relevant context from MongoDB based on timestamp."""
+        try:
+            db = await self.mongodb
+            collection = db['video_chunks']
+            
+            # Find the chunk containing the timestamp
+            chunk = await collection.find_one({
+                'video_id': video_id,
+                'start_time': {'$lte': timestamp},
+                '$expr': {
+                    '$lte': [timestamp, {'$add': ['$start_time', '$duration']}]
+                }
+            })
+            
+            if chunk:
+                # Get the previous and next chunks for more context
+                prev_chunk = await collection.find_one({
+                    'video_id': video_id,
+                    'chunk_index': chunk['chunk_index'] - 1
+                })
+                
+                next_chunk = await collection.find_one({
+                    'video_id': video_id,
+                    'chunk_index': chunk['chunk_index'] + 1
+                })
+                
+                # Combine chunks for context
+                context_parts = []
+                if prev_chunk:
+                    context_parts.append(prev_chunk['text'])
+                context_parts.append(chunk['text'])
+                if next_chunk:
+                    context_parts.append(next_chunk['text'])
+                
+                return ' '.join(context_parts)
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error retrieving context from MongoDB: {str(e)}")
+            raise
+
+    async def _store_video_details(self, video_id: str, url: str):
+        """Store video details in MongoDB."""
+        try:
+            db = await self.mongodb
+            collection = db['videos']
+            
+            # Get video title from YouTube
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json') as response:
+                    if response.status == 200:
+                        video_data = await response.json()
+                        title = video_data.get('title', 'Untitled Video')
+                    else:
+                        title = 'Untitled Video'
+            
+            # Create video document
+            video_doc = {
+                'video_id': video_id,
+                'url': url,
+                'title': title,
+                'created_at': datetime.utcnow(),
+                'status': 'processed'
+            }
+            
+            # Upsert the video document
+            await collection.update_one(
+                {'video_id': video_id},
+                {'$set': video_doc},
+                upsert=True
+            )
+            
+            logger.info(f"Stored video details for video_id: {video_id}")
+            
+        except Exception as e:
+            logger.error(f"Error storing video details: {str(e)}")
+            raise
+
+    async def process_video(self, video_id: str, url: str) -> bool:
+        """Process a YouTube video transcript with vector storage and document chunks."""
         try:
             logger.info(f"Starting video processing for video_id: {video_id}")
             
@@ -159,7 +230,15 @@ class VideoService:
             logger.info("Fetching video transcript...")
             captions = YouTubeTranscriptApi.get_transcript(video_id)
             
-            # Process captions
+            if not captions:
+                logger.warning("No captions found for the video")
+                return False
+            
+            # Create and store 5-minute chunks
+            chunks = self._create_five_minute_chunks(captions)
+            await self._store_chunks_in_mongodb(video_id, chunks)
+            
+            # Process captions for vector search
             data = []
             for caption in captions:
                 data.append({
@@ -189,15 +268,52 @@ class VideoService:
                     logger.warning(f"Warning while creating FTS index: {str(e)}")
                     pass
                 
+                # Store video details in MongoDB
+                await self._store_video_details(video_id, url)
+                
                 logger.info("Video processing completed successfully")
                 return True
-                
+            
             logger.warning("No captions were found for the video")
             return False
-
+            
         except Exception as e:
             logger.error(f"Error processing video: {str(e)}", exc_info=True)
             raise Exception(f"Failed to process video: {str(e)}")
+
+    def _convert_mongo_doc(self, doc):
+        """Convert MongoDB document to a serializable dictionary."""
+        if doc is None:
+            return None
+        
+        # Convert ObjectId to string
+        if '_id' in doc:
+            doc['_id'] = str(doc['_id'])
+        
+        return doc
+
+    async def get_all_videos(self):
+        """Get all processed videos."""
+        try:
+            db = await self.mongodb
+            collection = db['videos']
+            videos = await collection.find().sort('created_at', -1).to_list(length=None)
+            # Convert each document to a serializable format
+            return [self._convert_mongo_doc(video) for video in videos]
+        except Exception as e:
+            logger.error(f"Error fetching videos: {str(e)}")
+            raise
+
+    async def get_video_by_id(self, video_id: str):
+        """Get video details by ID."""
+        try:
+            db = await self.mongodb
+            collection = db['videos']
+            video = await collection.find_one({'video_id': video_id})
+            return self._convert_mongo_doc(video)
+        except Exception as e:
+            logger.error(f"Error fetching video: {str(e)}")
+            raise
 
     async def query_video_content(self, video_id: str, query: str) -> Tuple[str, Optional[float]]:
         """Query video content and return response with timestamp."""
@@ -215,53 +331,51 @@ class VideoService:
             )
             
             if exact_results:
-                match_timestamp = exact_results[0]['metadata']['timestamp_ms']
+                match_timestamp = exact_results[0]['metadata']['timestamp_ms'] / 1000
                 
-                # Get exactly one minute before and after (60000 ms = 1 minute)
-                window_results = (
-                    table.search("*")
-                    .where(f"metadata.timestamp_ms >= {match_timestamp - 60000} AND metadata.timestamp_ms <= {match_timestamp + 60000}")
-                    .select(["text", "metadata"])
-                    .to_list()
-                )
+                # Get broader context from MongoDB
+                context = await self._get_context_from_mongodb(video_id, match_timestamp)
                 
-                # Sort by timestamp
-                window_results.sort(key=lambda x: x['metadata']['timestamp_ms'])
-                
-                # Build context with clear minute:second timestamps
-                context_parts = []
-                for result in window_results:
-                    timestamp = result['metadata']['timestamp_ms'] / 1000  # Convert to seconds
-                    minutes = int(timestamp // 60)
-                    seconds = int(timestamp % 60)
-                    context_parts.append(f"[{minutes}:{seconds:02d}] {result['text']}")
-                
-                # Join with newlines for better readability
-                context = "\n".join(context_parts)
-
-                print("context", context)
+                if not context:
+                    # Fallback to vector search context if MongoDB fails
+                    window_results = (
+                        table.search("*")
+                        .where(f"metadata.timestamp_ms >= {match_timestamp * 1000 - 60000} AND metadata.timestamp_ms <= {match_timestamp * 1000 + 60000}")
+                        .select(["text", "metadata"])
+                        .to_list()
+                    )
+                    
+                    # Sort by timestamp
+                    window_results.sort(key=lambda x: x['metadata']['timestamp_ms'])
+                    
+                    # Build context with clear minute:second timestamps
+                    context_parts = []
+                    for result in window_results:
+                        timestamp = result['metadata']['timestamp_ms'] / 1000
+                        minutes = int(timestamp // 60)
+                        seconds = int(timestamp % 60)
+                        context_parts.append(f"[{minutes}:{seconds:02d}] {result['text']}")
+                    
+                    context = "\n".join(context_parts)
                 
                 logger.info("Generating response using OpenAI")
-                from openai import OpenAI
-                client = OpenAI(api_key=settings.OPENAI_API_KEY)
                 
                 prompt = f"""
-                Here is a 2-minute segment from the video transcript (one minute before and after the relevant part):
+                Here is a segment from the video transcript:
 
                 {context}
 
-                Based ONLY on this transcript segment, explain what is being discussed or described.
+                Based ONLY on this transcript segment, answer to the best of your ability the query: {query}
                 Be specific and accurate to the transcript content.
-                Include any features, comparisons, or technical details mentioned.
                 Do not add any external information not present in this transcript.
                 """
                 
-                response = client.chat.completions.create(
+                response = openai.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
                         {
                             "role": "system", 
-                            "content": """You are an assistant that summarizes video transcript segments.
+                            "content": """You are an assistant that answers questions based on video transcript segments.
                             Your responses must:
                             1. Only use information explicitly stated in the transcript
                             2. Be specific about what's being discussed

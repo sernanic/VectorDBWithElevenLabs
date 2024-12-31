@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
-import { VideoPlayer } from '@/components/VideoPlayer';
+import React, { useState, useEffect } from 'react';
+import { VideoList } from '@/components/VideoList';
+import { useBreadcrumbStore } from '@/store/breadcrumbStore';
+import { useToast } from '@/components/ui/use-toast';
 
-export const VideoManagement = () => {
+export function VideoManagement() {
   const [videoUrl, setVideoUrl] = useState('');
-  const [videoId, setVideoId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState('');
+  const { toast } = useToast();
+  const setBreadcrumbs = useBreadcrumbStore((state) => state.setBreadcrumbs);
+
+  useEffect(() => {
+    setBreadcrumbs([
+      {
+        label: "Videos",
+        path: "/admin/videos"
+      }
+    ]);
+  }, [setBreadcrumbs]);
 
   const handleVideoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -13,7 +24,6 @@ export const VideoManagement = () => {
 
     try {
       setIsProcessing(true);
-      setError('');
 
       const response = await fetch('/api/videos/process', {
         method: 'POST',
@@ -26,19 +36,31 @@ export const VideoManagement = () => {
         throw new Error(error.detail || 'Failed to process video');
       }
 
-      const data = await response.json();
-      setVideoId(data.videoId);
+      toast({
+        title: "Success",
+        description: "Video processed successfully",
+      });
+      
+      setVideoUrl('');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : 'An error occurred',
+      });
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Video Management</h1>
+      </div>
+
       <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-4">Video Management</h2>
+        <h2 className="text-xl font-semibold mb-4">Process New Video</h2>
         
         <form onSubmit={handleVideoSubmit} className="space-y-4">
           <div>
@@ -65,20 +87,12 @@ export const VideoManagement = () => {
             </div>
           </div>
         </form>
-
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md">
-            {error}
-          </div>
-        )}
       </div>
 
-      {videoId && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium mb-4">Video Q&A Interface</h3>
-          <VideoPlayer videoId={videoId} />
-        </div>
-      )}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-4">Processed Videos</h2>
+        <VideoList />
+      </div>
     </div>
   );
-};
+}

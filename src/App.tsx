@@ -18,6 +18,7 @@ import ContentManagement from "./features/content-management/ContentManagement";
 import SectionDetails from "./features/content-management/SectionDetails";
 import { SubsectionDetails } from "./features/content-management/SubsectionDetails";
 import { VideoManagement } from "./pages/admin/VideoManagement";
+import { VideoDetail } from "./pages/admin/VideoDetail";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ function App() {
                   element={<SubsectionDetails />} 
                 />
                 <Route path="videos" element={<VideoManagement />} />
+                <Route path="videos/:videoId" element={<VideoDetail />} />
                 <Route path="settings" element={<div>Settings</div>} />
               </Route>
             </Routes>

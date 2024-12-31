@@ -25,7 +25,7 @@ async def process_video(
 ):
     try:
         video_id = video_service.extract_video_id(video.url)
-        success = await video_service.process_video(video_id)
+        success = await video_service.process_video(video_id, video.url)
         
         if not success:
             raise HTTPException(status_code=400, detail="Failed to process video")
@@ -50,5 +50,30 @@ async def chat(
             response=response,
             timestamp=timestamp
         )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/")
+async def get_videos(
+    video_service: VideoService = Depends(VideoService),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        videos = await video_service.get_all_videos()
+        return videos
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{video_id}")
+async def get_video(
+    video_id: str,
+    video_service: VideoService = Depends(VideoService),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        video = await video_service.get_video_by_id(video_id)
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        return video
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

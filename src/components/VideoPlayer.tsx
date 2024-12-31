@@ -61,76 +61,85 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onVideoProces
   };
 
   return (
-    <div className="flex h-full">
-      <div className="w-3/5 p-4">
-        <div className="h-[480px]">
-          <YouTube
-            videoId={videoId}
-            onReady={handleVideoReady}
-            opts={{
-              height: '100%',
-              width: '100%',
-              playerVars: {
-                autoplay: 0,
-                origin: window.location.origin, // Add this line to fix the postMessage error
-              },
-            }}
-          />
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] gap-4 p-4">
+      <div className="lg:w-2/3 h-full flex flex-col">
+        <div className="relative w-full pt-[56.25%] bg-black rounded-lg overflow-hidden">
+          <div className="absolute inset-0">
+            <YouTube
+              videoId={videoId}
+              onReady={handleVideoReady}
+              opts={{
+                height: '100%',
+                width: '100%',
+                playerVars: {
+                  autoplay: 0,
+                  origin: window.location.origin,
+                },
+              }}
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="w-2/5 border-l border-gray-200 flex flex-col">
-        <div className="flex-1 overflow-auto p-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`mb-4 ${
-                message.role === 'user' ? 'text-right' : 'text-left'
-              }`}
-            >
+      <div className="lg:w-1/3 h-full flex flex-col bg-white rounded-lg shadow-lg border border-gray-200">
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full p-4 overflow-y-auto space-y-4">
+            {messages.map((message, index) => (
               <div
-                className={`inline-block p-3 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100'
+                key={index}
+                className={`flex ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
-                <p>{message.content}</p>
-                {message.timestamp && (
-                  <button
-                    onClick={() => {
-                      player?.seekTo(message.timestamp);
-                      player?.playVideo();
-                    }}
-                    className="text-xs underline mt-1"
-                  >
-                    Jump to {Math.floor(message.timestamp)}s
-                  </button>
-                )}
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-2 ${
+                    message.role === 'user'
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                  }`}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  {message.timestamp && (
+                    <button
+                      onClick={() => {
+                        player?.seekTo(message.timestamp);
+                        player?.playVideo();
+                      }}
+                      className={`text-xs mt-1 ${
+                        message.role === 'user'
+                          ? 'text-blue-100 hover:text-white'
+                          : 'text-blue-500 hover:text-blue-700'
+                      }`}
+                    >
+                      Jump to {Math.floor(message.timestamp / 60)}:{String(Math.floor(message.timestamp % 60)).padStart(2, '0')}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <form onSubmit={handleQuestionSubmit} className="p-4 border-t">
-          <div className="flex gap-2">
+        <div className="p-4 border-t border-gray-200">
+          <form onSubmit={handleQuestionSubmit} className="flex gap-2">
             <input
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask a question about the video..."
-              className="flex-1 px-4 py-2 border rounded-lg"
+              className="flex-1 px-4 py-2 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isProcessing}
             />
             <button
               type="submit"
               disabled={isProcessing}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
+              className="px-6 py-2 text-sm font-medium text-white bg-blue-500 rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isProcessing ? 'Processing...' : 'Send'}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
