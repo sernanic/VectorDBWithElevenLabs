@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import content, api_router, chatbot, video
+from .routes import content, api_router, chatbot, video, web_content
 
 app = FastAPI()
 
@@ -28,6 +28,7 @@ app.include_router(content.router, prefix="/api/v1")
 app.include_router(chatbot.router, prefix="/api/v1")
 app.include_router(api_router, prefix="/api")
 app.include_router(video.router)  # Video router already has /api/videos prefix
+app.include_router(web_content.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

@@ -38,6 +38,12 @@ interface AddSubsectionRequest {
   content: string;
 }
 
+interface AddWebContentRequest {
+  url: string;
+  section_id: string;
+  title: string;
+}
+
 export async function getPageContent(contentId: string, language: string) {
   try {
     const response = await fetch(`/api/content/${language}/${contentId}`);
@@ -167,6 +173,30 @@ export async function addSubsection(language: string, subsectionData: AddSubsect
     return await response.json();
   } catch (error) {
     console.error('Error adding subsection:', error);
+    throw error;
+  }
+}
+
+export async function addWebContent(data: AddWebContentRequest): Promise<DocumentStructure> {
+  try {
+    const response = await fetch(`${environment.apiBaseUrl}/api/v1/webContent/add`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding web content:', error);
     throw error;
   }
 }
