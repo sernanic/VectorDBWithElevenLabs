@@ -320,6 +320,7 @@ class VideoService:
         try:
             logger.info(f"Querying video content for video_id: {video_id} with query: {query}")
             
+            # TODO: change to store by collection
             table = self.db.open_table(f"video_{video_id}")
             
             # First find the exact match
@@ -367,7 +368,7 @@ class VideoService:
 
                 Based ONLY on this transcript segment, answer to the best of your ability the query: {query}
                 Be specific and accurate to the transcript content.
-                Do not add any external information not present in this transcript.
+                DO NOT add any external information not present in this transcript.
                 """
                 
                 response = openai.chat.completions.create(

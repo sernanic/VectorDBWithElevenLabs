@@ -24,7 +24,7 @@ const LanguageSelector = ({ collapsed = false }: LanguageSelectorProps) => {
   };
 
   return (
-    <div className={`${collapsed ? 'px-2 py-2' : 'px-6 py-4 border-t border-border'}`}>
+    <div className={`${collapsed ? 'px-2 py-2' : 'px-6 py-4 border-border'}`}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className={`flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 ${collapsed ? 'p-2' : ''}`}>

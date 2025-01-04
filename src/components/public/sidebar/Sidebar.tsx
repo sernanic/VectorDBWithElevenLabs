@@ -97,12 +97,12 @@ const Sidebar = ({ isMobileOpen, toggleMobileSidebar }: SidebarProps) => {
             </div>
           </div>
           {/* Fixed bottom area */}
-          <div className="shrink-0 p-4 border-t border-border">
+          <div className="shrink-0 p-4 border-t border-border flex items-center justify-between">
             <LanguageSelector />
             {hasAdminPermission && (
               <Link 
                 to="/admin" 
-                className="flex items-center gap-2 px-2 py-2 mt-2 text-sm text-gray-600 hover:text-primary transition-colors"
+                className="flex items-center gap-2 px-4 py-2 mt-2 text-sm text-white bg-primary rounded-md hover:bg-primary-dark transition-colors"
               >
                 <span>Admin Portal</span>
               </Link>

@@ -69,11 +69,12 @@ export function SectionDetails() {
         onClose={() => setIsAddSubsectionOpen(false)}
         addSubsectionMutation={addSubsectionMutation}
       />
-
-      <SubsectionsTable
-        subsections={subsections}
-        subsectionsCount={subsectionsCount}
-      />
+      <div className="bg-white p-6 rounded-lg shadow">
+        <SubsectionsTable
+          subsections={subsections}
+          subsectionsCount={subsectionsCount}
+        />
+      </div>
     </div>
   );
 }

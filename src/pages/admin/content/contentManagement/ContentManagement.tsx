@@ -44,14 +44,15 @@ export function ContentManagement() {
         onSubmit={onSubmit} 
         addSectionMutation={addSectionMutation} 
       />
-
-      <SectionTable 
-        sections={contentData?.sections || {}} 
-        expandedSections={expandedSections} 
-        toggleSection={toggleSection} 
-        navigate={navigate} 
-        hasSections={hasSections} 
-      />
+      <div className="bg-white p-6 rounded-lg shadow">
+        <SectionTable 
+          sections={contentData?.sections || {}} 
+          expandedSections={expandedSections} 
+          toggleSection={toggleSection} 
+          navigate={navigate} 
+          hasSections={hasSections} 
+        />
+      </div>
     </div>
   );
 }

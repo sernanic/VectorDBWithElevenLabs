@@ -53,24 +53,63 @@ class ContentService:
             return
 
         try:
-            url = f"https://api.elevenlabs.io/v1/convai/agents/{self._elevenlabs_agent_id}/add-to-knowledge-base"
+            # Step 1: Add document to knowledge base
+            upload_url = f"https://api.elevenlabs.io/v1/convai/agents/{self._elevenlabs_agent_id}/add-to-knowledge-base"
             headers = {
                 'xi-api-key': self._elevenlabs_api_key
             }
 
+            document_id = None
+            document_name = Path(file_path).name
+
             with open(file_path, 'rb') as f:
                 files = [
-                    ('file', (Path(file_path).name, f, 'text/plain'))
+                    ('file', (document_name, f, 'text/plain'))
                 ]
-                response = requests.post(url, headers=headers, files=files)
+                response = requests.post(upload_url, headers=headers, files=files)
                 
                 if not response.ok:
                     logger.error(f"ElevenLabs API Error - Status Code: {response.status_code}")
                     logger.error(f"Response Content: {response.text}")
+                    response.raise_for_status()
                 
-                response.raise_for_status()
+                # Get document ID from response
+                document_id = response.json().get('id')
+                print(response.json())
+                if not document_id:
+                    raise ValueError("No document ID received from ElevenLabs API")
+
+            # Step 2: Update agent with the new document
+            update_url = f"https://api.elevenlabs.io/v1/convai/agents/{self._elevenlabs_agent_id}"
+            update_headers = {
+                'Content-Type': 'application/json',
+                'xi-api-key': self._elevenlabs_api_key
+            }
+
+            update_data = {
+                "conversation_config": {
+                    "agent": {
+                        "prompt": {
+                            "knowledge_base": [
+                                {
+                                    "type": "file",
+                                    "name": document_name,
+                                    "id": document_id
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+
+            update_response = requests.patch(update_url, headers=update_headers, json=update_data)
+            
+            if not update_response.ok:
+                logger.error(f"ElevenLabs Agent Update Error - Status Code: {update_response.status_code}")
+                logger.error(f"Response Content: {update_response.text}")
+                update_response.raise_for_status()
                 
-            logger.info("Successfully uploaded content to ElevenLabs agent knowledge base")
+            logger.info("Successfully uploaded and linked content to ElevenLabs agent knowledge base")
             
         except Exception as e:
             logger.error(f"Error saving to ElevenLabs: {str(e)}", exc_info=True)
@@ -125,12 +164,12 @@ class ContentService:
                     # Format content for text file
                     content_text = f"""Title: {content_id}
 
-Page Content:
-{content.pageContent}
+                    Page Content:
+                    {content.pageContent}
 
-Table of Contents:
-{str(toc.dict() if toc else {})}
-"""
+                    Table of Contents:
+                    {str(toc.dict() if toc else {})}
+                    """
                     
                     # Save content to temporary file
                     with open(temp_file_path, 'w', encoding='utf-8') as f:
@@ -278,7 +317,7 @@ Table of Contents:
         
         # First pass: Create all headers and store them by ID
         for header in headers:
-            header_id = f"header_{len(headers_by_id)}"
+            header_id = f"header_{len(headers_by_id)}" #TODO: Change to UUID
             header_obj = TableOfContentHeader(
                 id=header_id,
                 title=header['title'],
